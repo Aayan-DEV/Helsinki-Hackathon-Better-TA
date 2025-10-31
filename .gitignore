@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+
+# macOS
+.DS_Store
+
+# Virtual env
+.venv/
+
+# Django local DB
+db.sqlite3
+
+# Env files
+.env
+
+# Static collection (if used for prod builds)
+staticfiles/

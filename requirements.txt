@@ -1,0 +1,5 @@
+flask
+django
+gunicorn
+supabase 
+django-environ
