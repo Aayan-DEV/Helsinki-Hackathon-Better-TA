@@ -13,17 +13,13 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 from pathlib import Path
 import os
 from dotenv import load_dotenv
-import environ
 
-env = environ.Env()
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 SECRET_KEY = 'django-insecure-ay-h=ci^wjc_-^762*8+*f%x^s+act)a^bo#by8g9aq-a@67_5'
 DEBUG = os.getenv("DEBUG", "True").lower() in ("1", "true", "yes", "on")
-ALLOWED_HOSTS = env.list("ALLOWED_HOSTS", default=["0.0.0.0", "127.0.0.1", "localhost"])
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS", default=[])
-
+ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "0.0.0.0,127.0.0.1,localhost").split(",") if h.strip()]
 SUPABASE_URL = os.getenv("SUPABASE_URL")
 SUPABASE_ANON_KEY = os.getenv("SUPABASE_ANON_KEY")
 
