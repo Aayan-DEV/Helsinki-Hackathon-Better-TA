@@ -3,3 +3,4 @@ django
 gunicorn
 supabase 
 django-environ
+python-dotenv
