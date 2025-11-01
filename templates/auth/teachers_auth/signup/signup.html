@@ -1,0 +1,546 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher Sign Up</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <main class="min-h-full flex items-center justify-center p-6">
+    <section class="w-full max-w-2xl bg-white rounded-lg border border-neutral-200 shadow-sm">
+      <div class="p-6">
+        <h1 class="text-2xl font-semibold text-neutral-900">Create your Teacher account</h1>
+        <p class="mt-1 text-sm text-neutral-600">Sign up with Google or use your email.</p>
+
+        <button id="googleBtn" class="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+          <span class="material-symbols-outlined">login</span>
+          <span>Sign up with Google</span>
+        </button>
+
+        <div class="flex items-center gap-4 my-6">
+          <div class="h-px bg-neutral-200 flex-1"></div>
+          <span class="text-xs text-neutral-500">Or</span>
+          <div class="h-px bg-neutral-200 flex-1"></div>
+        </div>
+
+        <form id="teacherSignupForm" class="space-y-4" novalidate>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-neutral-700">First Name</label>
+              <div class="mt-1 relative">
+                <input id="firstName" type="text" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="John" required>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">person</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm text-neutral-700">Last Name</label>
+              <div class="mt-1 relative">
+                <input id="lastName" type="text" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Doe" required>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">person</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-neutral-700">Title</label>
+              <div class="mt-1 relative">
+                <select id="title" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" required>
+                  <option value="" disabled selected>Select</option>
+                  <option>Mr</option>
+                  <option>Mrs</option>
+                  <option>Ms</option>
+                  <option>Doctor</option>
+                </select>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">expand_more</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm text-neutral-700">Special Teachers Code</label>
+              <div class="mt-1 relative">
+                <input id="specialCode" type="text" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., TCHR-1234" required>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">key</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm text-neutral-700">Email</label>
+            <div class="mt-1 relative">
+              <input id="email" type="email" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="you@example.com" required>
+              <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">mail</span>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label class="text-sm text-neutral-700">Password</label>
+              <div class="mt-1 relative">
+                <input id="password" type="password" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="********" required>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">lock</span>
+              </div>
+            </div>
+            <div>
+              <label class="text-sm text-neutral-700">Rewrite Password</label>
+              <div class="mt-1 relative">
+                <input id="confirmPassword" type="password" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="********" required>
+                <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">lock</span>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm text-neutral-700">Phone Number (Finland)</label>
+            <div class="mt-1 relative">
+              <div class="flex w-full">
+                <span class="inline-flex items-center px-3 rounded-l-md border border-neutral-300 bg-neutral-50 text-neutral-700 select-none">+358</span>
+                <input id="phoneLocal" type="tel" inputmode="numeric" class="flex-1 rounded-r-md border border-neutral-300 border-l-0 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="50 123 4567" required>
+              </div>
+              <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">call</span>
+            </div>
+            <div id="phoneHint" class="mt-1 text-xs text-neutral-500">
+              Format: +358 then number without leading zero (digits only). Typical mobile: 50/44/45/40 + 7 digits.
+            </div>
+          </div>
+
+          <ul id="passwordRules" class="mt-2 text-xs space-y-1 text-neutral-600">
+            <li id="rule-length">• At least 8 characters</li>
+            <li id="rule-upper">• At least 1 uppercase letter</li>
+            <li id="rule-number">• At least 1 number</li>
+            <li id="rule-special">• At least 1 special character</li>
+            <li id="rule-match">• Passwords match</li>
+          </ul>
+
+          <!-- inside the form, directly after the Create Account button -->
+          <button id="signupBtn" class="mt-4 w-full rounded-md bg-neutral-900 text-white px-4 py-2.5 transition-colors hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed hidden" disabled>
+            Create Account
+          </button>
+          <div id="confirmHelp" class="mt-2 text-xs text-neutral-600 hidden">
+            Didn’t receive the email?
+            <button id="resendBtn" type="button" class="underline text-neutral-900">Resend confirmation</button>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script>
+    // Supabase client init (expects window.SUPABASE_URL / window.SUPABASE_ANON_KEY or Django context values)
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+        ? window.supabase.createClient(supabaseUrl, supabaseKey, {
+            auth: { persistSession: true, autoRefreshToken: true }
+          })
+        : null;
+
+    const REDIRECT_URL = "{{ request.scheme }}://{{ request.get_host }}{% url 'teachers_signup' %}";
+    let didConfirmRedirect = false;
+    // Detect email confirmation on page load and announce it
+    (async function checkEmailConfirmationOnLoad() {
+        if (!sb) return;
+        try {
+        const { data: { session } } = await sb.auth.getSession();
+        const confirmedAt = session?.user?.email_confirmed_at;
+        if (confirmedAt) {
+            // Email has been confirmed; announce and redirect to dashboard
+            if (typeof showMessage === 'function') {
+            showMessage('Your email is confirmed. Redirecting to dashboard…', 'success', 8000);
+            }
+            setTimeout(() => {
+            window.location.href = '/teachers/';
+            }, 1200);
+        }
+        } catch (_) {
+        // ignore; no session yet
+        }
+    })();
+
+    // Elements
+    const firstNameEl = document.getElementById('firstName');
+    const lastNameEl = document.getElementById('lastName');
+    const titleEl = document.getElementById('title');
+    const specialCodeEl = document.getElementById('specialCode');
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const confirmEl = document.getElementById('confirmPassword');
+    const phoneLocalEl = document.getElementById('phoneLocal');
+    const phoneHintEl = document.getElementById('phoneHint');
+    const signupBtn = document.getElementById('signupBtn');
+    const googleBtn = document.getElementById('googleBtn');
+    const confirmHelp = document.getElementById('confirmHelp');
+    const resendBtn = document.getElementById('resendBtn');
+
+    async function announceAndRedirectIfConfirmed(sessionOrUser) {
+      const user = sessionOrUser?.user || sessionOrUser || null;
+      const uid = user?.id;
+      const confirmedAt = user?.email_confirmed_at;
+      if (!uid || !confirmedAt || didConfirmRedirect) return false;
+
+      try {
+        localStorage.setItem('teacher_logged_in', '1');
+        localStorage.setItem('teacher_user_id', uid);
+        localStorage.setItem('teacher_email', user?.email || '');
+      } catch (_) {}
+
+      try {
+        const res = await fetch('/teachers/confirm-signup/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ supabase_user_id: uid })
+        });
+        const json = await res.json();
+        if (json?.ok && json?.confirmed) {
+          if (typeof showMessage === 'function') {
+            showMessage('Your email is confirmed. Redirecting to your dashboard…', 'success', 5000);
+          }
+          didConfirmRedirect = true;
+          setTimeout(() => { window.location.href = '/dashboard/teacher/'; }, 800);
+          return true;
+        }
+      } catch (_) {}
+      return false;
+    }
+
+    // Single on-load check (guarded)
+    (async () => {
+      if (!sb) return;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        await announceAndRedirectIfConfirmed(session);
+      } catch (_) {}
+    })();
+
+    // Listen for auth state changes (guarded)
+    if (sb?.auth?.onAuthStateChange) {
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          await announceAndRedirectIfConfirmed(session);
+        }
+      });
+    }
+
+    function resendConfirmation(email) {
+      (async () => {
+        try {
+          const res = await fetch('/teachers/resend-confirmation/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const json = await res.json();
+          if (!json?.ok) throw new Error(json?.error || 'Resend failed.');
+          if (json?.confirm_link) {
+            if (typeof showMessage === 'function') {
+              showMessage('Opening your confirmation link…', 'success', 6000);
+            }
+            // Open the exact action_link that includes tokens and uses the current host
+            window.location.href = json.confirm_link;
+            return;
+          }
+          if (typeof showMessage === 'function') {
+            showMessage(`Confirmation email resent to ${email}.`, 'success', 8000);
+          }
+        } catch (e) {
+          const msg = e?.message || 'Resend failed.';
+          if (typeof showMessage === 'function') showMessage(msg, 'error', 10000);
+        }
+      })();
+    }
+
+    // Detect email confirmation on page load and announce it
+    (async function checkEmailConfirmationOnLoad() {
+      if (!sb) return;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        await announceAndRedirectIfConfirmed(session);
+      } catch (_) {
+        // ignore; no session yet
+      }
+    })();
+
+    // Also listen for auth state changes (e.g., after clicking the email confirmation link)
+    if (sb?.auth?.onAuthStateChange) {
+      sb.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN') {
+          await announceAndRedirectIfConfirmed(session);
+        }
+      });
+    }
+
+    const ruleEls = {
+      length: document.getElementById('rule-length'),
+      upper: document.getElementById('rule-upper'),
+      number: document.getElementById('rule-number'),
+      special: document.getElementById('rule-special'),
+      match: document.getElementById('rule-match'),
+    };
+
+    // Validation helpers
+    function checkPasswordRules(pw, confirmPw) {
+      return {
+        length: pw.length >= 8,
+        upper: /[A-Z]/.test(pw),
+        number: /\d/.test(pw),
+        special: /[!@#$%^&*()_\-+={}[\]|:;"'<>,.?/~`\\]/.test(pw),
+        match: pw.length > 0 && pw === confirmPw,
+      };
+    }
+
+    function setRuleClass(el, ok) {
+      el.classList.remove('text-neutral-600', 'text-red-600', 'text-green-600');
+      el.classList.add(ok ? 'text-green-600' : 'text-red-600');
+    }
+
+    function digitsOnly(str) {
+      return (str || '').replace(/\D+/g, '');
+    }
+
+    // Validate Finnish phone (local part, without leading zero), conservative length check
+    function validatePhoneLocal() {
+      const raw = phoneLocalEl.value;
+      const digits = digitsOnly(raw);
+      // Disallow leading zero in local part (common in national format but not after +358)
+      const noLeadingZero = digits.length > 0 ? digits[0] !== '0' : false;
+      // Typical mobile numbers: 2–3 operator digits + 7 subscriber digits => 9–10 digits total after +358 minus leading zero
+      const reasonableLen = digits.length >= 7 && digits.length <= 10;
+      const ok = noLeadingZero && reasonableLen;
+
+      // Update hint color
+      phoneHintEl.classList.remove('text-neutral-500', 'text-red-600', 'text-green-600');
+      phoneHintEl.classList.add(ok ? 'text-green-600' : 'text-red-600');
+
+      // Auto-clean input to digits-only while user types
+      if (raw !== digits) {
+        const caretPos = phoneLocalEl.selectionStart;
+        phoneLocalEl.value = digits;
+        try {
+          phoneLocalEl.setSelectionRange(caretPos - (raw.length - digits.length), caretPos - (raw.length - digits.length));
+        } catch (_) {}
+      }
+      return ok;
+    }
+
+    function emailValid() {
+      return emailEl.validity.valid;
+    }
+
+    function allRequiredFilled() {
+      return (
+        firstNameEl.value.trim() &&
+        lastNameEl.value.trim() &&
+        titleEl.value.trim() &&
+        specialCodeEl.value.trim() &&
+        emailEl.value.trim() &&
+        passwordEl.value &&
+        confirmEl.value &&
+        phoneLocalEl.value.trim()
+      );
+    }
+
+    function updatePasswordUI() {
+      const pw = passwordEl.value;
+      const cpw = confirmEl.value;
+      const res = checkPasswordRules(pw, cpw);
+      setRuleClass(ruleEls.length, res.length);
+      setRuleClass(ruleEls.upper, res.upper);
+      setRuleClass(ruleEls.number, res.number);
+      setRuleClass(ruleEls.special, res.special);
+      setRuleClass(ruleEls.match, res.match);
+    }
+
+    function updateFormValidity() {
+      updatePasswordUI();
+      const pw = passwordEl.value;
+      const cpw = confirmEl.value;
+      const passOk = Object.values(checkPasswordRules(pw, cpw)).every(Boolean);
+      const phoneOk = validatePhoneLocal();
+      const emailOk = emailValid();
+      const filled = allRequiredFilled();
+
+      const allOk = passOk && phoneOk && emailOk && filled;
+
+      // Only show the button when fully valid
+      signupBtn.disabled = !allOk;
+      signupBtn.classList.toggle('hidden', !allOk);
+    }
+
+    function collectInvalidReasons() {
+      const reasons = [];
+      if (!firstNameEl.value.trim()) reasons.push('First Name is required.');
+      if (!lastNameEl.value.trim()) reasons.push('Last Name is required.');
+      if (!titleEl.value.trim()) reasons.push('Title is required.');
+      if (!specialCodeEl.value.trim()) reasons.push('Special Teachers Code is required.');
+      if (!emailEl.value.trim() || !emailValid()) reasons.push('Enter a valid email address.');
+      const pw = passwordEl.value;
+      const cpw = confirmEl.value;
+      const rules = checkPasswordRules(pw, cpw);
+      if (!rules.length) reasons.push('Password must be at least 8 characters.');
+      if (!rules.upper) reasons.push('Password must include an uppercase letter.');
+      if (!rules.number) reasons.push('Password must include a number.');
+      if (!rules.special) reasons.push('Password must include a special character.');
+      if (!rules.match) reasons.push('Passwords must match.');
+      if (!validatePhoneLocal()) reasons.push('Phone must be digits only after +358, no leading zero, 7–10 digits.');
+      return reasons;
+    }
+
+    // Event wiring for real-time validation
+    [firstNameEl, lastNameEl, titleEl, specialCodeEl, emailEl, passwordEl, confirmEl, phoneLocalEl]
+      .forEach(el => el.addEventListener('input', updateFormValidity));
+
+    // Initialize state
+    updateFormValidity();
+
+    // Google OAuth
+    googleBtn.addEventListener('click', async () => {
+      if (!sb) {
+        if (typeof showMessage === 'function') {
+          showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+        }
+        return;
+      }
+      try {
+          await sb.auth.signInWithOAuth({
+            provider: 'google',
+            options: { redirectTo: REDIRECT_URL }
+          });
+      } catch (e) {
+        const msg = e?.message || 'Google sign-in failed.';
+        const hint = 'Hint: Check client ID/secret and redirect URI in Google Console.';
+        if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 10000);
+      }
+    });
+
+    // Form submit
+    document.getElementById('teacherSignupForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      updateFormValidity();
+
+      const reasons = collectInvalidReasons();
+      if (reasons.length > 0) {
+        if (typeof showMessage === 'function') {
+          showMessage(`Fix the following: ${reasons.join(' ')}`, 'error', 12000);
+        }
+        return;
+      }
+      if (!sb) {
+        if (typeof showMessage === 'function') {
+          showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+        }
+        return;
+      }
+
+      signupBtn.disabled = true;
+      signupBtn.textContent = 'Creating account...';
+
+      const payload = {
+        first_name: firstNameEl.value.trim(),
+        last_name: lastNameEl.value.trim(),
+        title: titleEl.value.trim(),
+        special_code: specialCodeEl.value.trim(),
+        email: emailEl.value.trim(),
+        password: passwordEl.value,
+        phone_local: digitsOnly(phoneLocalEl.value.trim())
+      };
+
+      try {
+        // Supabase signup (will send confirmation email)
+        const { data, error } = await sb.auth.signUp({
+            email: payload.email,
+            password: payload.password,
+            options: {
+            data: {
+                first_name: payload.first_name,
+                last_name: payload.last_name,
+                title: payload.title,
+                phone_local: payload.phone_local
+            },
+            emailRedirectTo: REDIRECT_URL
+            }
+        });
+
+        if (error) {
+          const msg = error.message || 'Signup failed.';
+          const code = error.status ? `status ${error.status}` : '';
+          let hint = '';
+          if (/already/i.test(msg)) hint = 'Hint: If you already have an account, use password reset.';
+          else if (/rate|limit/i.test(msg)) hint = 'Hint: Wait briefly and try again.';
+          else if (/password/i.test(msg)) hint = 'Hint: Adjust password to meet all rules.';
+          if (typeof showMessage === 'function') showMessage(`Signup failed (${code}). ${msg} ${hint}`, 'error', 12000);
+          signupBtn.disabled = false;
+          signupBtn.textContent = 'Create Account';
+          return;
+        }
+
+        const userId = data?.user?.id || null;
+
+        // Inform user to confirm their email
+        if (typeof showMessage === 'function') {
+          showMessage(`We sent a confirmation email to ${payload.email}. Please confirm to activate your account. After confirming, you'll be redirected back here automatically.`, 'success', 14000);
+        }
+
+        // Record teacher in Django (safe to do pre-confirm; uses get_or_create)
+        if (userId) {
+          const res = await fetch('/teachers/register/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              supabase_user_id: userId,
+              first_name: payload.first_name,
+              last_name: payload.last_name,
+              title: payload.title,
+              email: payload.email,
+              phone: `+358${payload.phone_local}`,
+              special_code: payload.special_code
+            })
+          });
+
+          if (!res.ok) {
+            let msg = 'Teacher code validation failed.';
+            try {
+              const detail = await res.json();
+              msg = detail?.error || detail?.detail || msg;
+            } catch (_) {}
+            const hint = 'Hint: Verify the Special Teachers Code with your school admin; it must exist and be active.';
+            if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
+          }
+        }
+
+        // Enable "Resend confirmation" helper
+        window.__teacherSignupEmail = payload.email;
+        window.__teacherSignupUserId = userId;
+        confirmHelp.classList.remove('hidden');
+        resendBtn.onclick = () => resendConfirmation(window.__teacherSignupEmail);
+
+        // Reset button but keep the form visible while waiting for email confirmation
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Create Account';
+      } catch (err) {
+        const msg = err?.message || 'Unexpected error during signup.';
+        const hint = 'Hint: Check network connectivity and server logs for details.';
+        if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Create Account';
+      }
+    });
+  </script>
+</body>
+</html>

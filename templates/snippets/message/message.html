@@ -1,0 +1,65 @@
+{% if messages %}
+<div id="message-bar" class="fixed top-0 left-0 right-0 z-50 pointer-events-none">
+  {% for message in messages %}
+  <div class="mx-auto max-w-3xl mt-4 px-4">
+    <div class="pointer-events-auto rounded-md border shadow-sm bg-neutral-900 text-white border-neutral-800">
+      <div class="flex items-center justify-between gap-4 px-4 py-3">
+        <p class="text-sm">{{ message }}</p>
+        <button class="material-symbols-outlined text-white/80 hover:text-white"
+                onclick="this.closest('.pointer-events-auto').remove()" aria-label="Close">close</button>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<div id="message-root" class="fixed top-0 left-0 right-0 z-50"></div>
+<script>
+  // Universal message helper: showMessage(type, text, durationMs)
+  window.showMessage = (a, b, duration = 2500) => {
+    const root = document.getElementById('message-root');
+    if (!root) return;
+
+    // Clear any existing message and timer to prevent stacking
+    if (window.__messageTimer) clearTimeout(window.__messageTimer);
+    while (root.firstChild) root.removeChild(root.firstChild);
+
+    // Order-agnostic: (type, text) or (text, type)
+    const types = ['error', 'warning', 'default', 'info', 'success'];
+    const aStr = String(a || '').toLowerCase();
+    let type, text;
+    if (types.includes(aStr)) {
+      type = aStr;
+      text = String(b || '');
+    } else {
+      text = String(a || '');
+      const bStr = String(b || 'default').toLowerCase();
+      type = types.includes(bStr) ? bStr : 'default';
+    }
+    if (!text) text = type === 'error' ? 'An error occurred.' : 'Notice';
+
+    const wrap = document.createElement('div');
+    wrap.className = 'mx-auto max-w-3xl mt-4 px-4';
+
+    const style =
+      type === 'error' ? 'bg-red-600 text-white border-red-700' :
+      type === 'warning' ? 'bg-amber-500 text-black border-amber-600' :
+      type === 'success' ? 'bg-green-600 text-white border-green-700' :
+      'bg-neutral-900 text-white border-neutral-800';
+
+    wrap.innerHTML = `
+      <div class="pointer-events-auto rounded-md border ${style} shadow-sm">
+        <div class="flex items-center justify-between gap-4 px-4 py-3">
+          <p class="text-sm">${text}</p>
+          <button class="material-symbols-outlined ${type==='warning'?'text-black/70':'text-white/80'} hover:text-white" aria-label="Close">close</button>
+        </div>
+      </div>
+    `;
+    wrap.querySelector('button').addEventListener('click', () => wrap.remove());
+    root.appendChild(wrap);
+
+    // Only one timer — replaces previous if present
+    window.__messageTimer = setTimeout(() => { wrap.remove(); }, duration);
+  };
+</script>

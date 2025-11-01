@@ -1,25 +1,49 @@
-"""
-URL configuration for hackathon project.
-
-The `urlpatterns` list routes URLs to views. For more information please see:
-    https://docs.djangoproject.com/en/5.2/topics/http/urls/
-Examples:
-Function views
-    1. Add an import:  from my_app import views
-    2. Add a URL to urlpatterns:  path('', views.home, name='home')
-Class-based views
-    1. Add an import:  from other_app.views import Home
-    2. Add a URL to urlpatterns:  path('', Home.as_view(), name='home')
-Including another URLconf
-    1. Import the include() function: from django.urls import include, path
-    2. Add a URL to urlpatterns:  path('blog/', include('blog.urls'))
-"""
 from django.contrib import admin
 from django.urls import path, include
 from django.views.generic import TemplateView
+from django.conf import settings
+from teachers_dash.views import dashboard as teachers_dashboard
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('', TemplateView.as_view(template_name='home/home.html'), name='home'),
+    path(
+        '',
+        TemplateView.as_view(
+            template_name='home/home.html',
+            extra_context={
+                'SUPABASE_URL': settings.SUPABASE_URL,
+                'SUPABASE_ANON_KEY': settings.SUPABASE_ANON_KEY,
+            },
+        ),
+        name='home',
+    ),
+    path('dashboard/teacher/', teachers_dashboard, name='teachers_dashboard_direct'),
     path('teachers/', include('teachers_dash.urls')),
+    # Allauth routes
+    path('accounts/', include('allauth.urls')),
+    path(
+        'auth/signup/',
+        TemplateView.as_view(
+            template_name='auth/global/signup/signup.html',
+            extra_context={
+                'SUPABASE_URL': settings.SUPABASE_URL,
+                'SUPABASE_ANON_KEY': settings.SUPABASE_ANON_KEY,
+            },
+        ),
+        name='global_signup',
+    ),
+    path(
+        'auth/teachers/signup/',
+        TemplateView.as_view(
+            template_name='auth/teachers_auth/signup/signup.html',
+            extra_context={
+                'SUPABASE_URL': settings.SUPABASE_URL,
+                'SUPABASE_ANON_KEY': settings.SUPABASE_ANON_KEY,
+            },
+        ),
+        name='teachers_signup',
+    ),
+    path('dashboard/assistants/', include('teachers_assistants_dash.urls')),
+    path('dashboard/students/', include('students_dash.urls')),
+
 ]

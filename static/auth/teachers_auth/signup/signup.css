@@ -1,0 +1,11 @@
+@font-face {
+  font-family: 'Open Sauce Sans';
+  src: url('/static/font/OpenSauceSans-Regular.ttf') format('truetype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+html, body { height: 100%; }
+body { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; font-family: 'Open Sauce Sans', system-ui, -apple-system, Segoe UI, Roboto, Helvetica Neue, Arial; }
+#passwordRules .ok { color: #16a34a; }     /* green-600 */
+#passwordRules .bad { color: #525252; }    /* neutral-600 */
