@@ -1,0 +1,187 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <title>Courses Assigned</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'] },
+      }},
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='assistant' %}
+    <div class="flex-1 min-w-0">
+      <header class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">Courses Assigned</h1>
+        <div class="flex items-center gap-3">
+          <span id="assistantName" class="text-sm text-neutral-700">Loading…</span>
+          <!-- removed Dashboard link -->
+          <button id="signOutBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors">
+            <span class="material-symbols-outlined text-base">logout</span>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="p-6">
+        <div id="coursesGrid" class="grid grid-cols-1 lg:grid-cols-2 gap-4"></div>
+        <div id="emptyState" class="hidden rounded-lg border border-neutral-200 bg-white p-8 text-center">
+          <div class="text-neutral-900 font-medium">No courses assigned yet.</div>
+          <div class="text-neutral-600 text-sm mt-1">You’ll see your courses here once a Professor assigns you.</div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    const assistantNameEl = document.getElementById('assistantName');
+    const coursesGridEl = document.getElementById('coursesGrid');
+    const emptyStateEl = document.getElementById('emptyState');
+
+    let assistantContext = { assistant_id: null, assistant_code: null, supabase_user_id: null, email: null };
+    const storedAssistantCode = localStorage.getItem('assistantCode') || null;
+    const API_ASSISTANT_LOOKUP = '/dashboard/assistants/api/assistant/lookup/';
+
+    function setAssistantName(label, email) {
+      assistantNameEl.textContent = label || email || 'Unknown Assistant';
+    }
+
+    function formatDt(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch { return iso; }
+    }
+
+    function teacherLabel(t) {
+      const title = t?.title ? t.title + ' ' : '';
+      const name = `${t?.first_name || ''} ${t?.last_name || ''}`.trim();
+      return (title + name).trim();
+    }
+
+    function renderCourses(courses) {
+      coursesGridEl.innerHTML = '';
+      if (!courses || !courses.length) {
+        emptyStateEl.classList.remove('hidden');
+        return;
+      }
+      emptyStateEl.classList.add('hidden');
+
+      courses.forEach(c => {
+        const card = document.createElement('div');
+        card.className = 'rounded-lg border border-neutral-200 bg-white p-4 shadow-sm flex flex-col gap-3';
+        const exHtml = (c.exercises || []).map(e => `
+          <li class="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2">
+            <div>
+              <div class="text-sm font-medium text-neutral-900">${e.title}</div>
+              <div class="text-xs text-neutral-600">Start: ${formatDt(e.start_time)} • Due: ${formatDt(e.deadline)}</div>
+              <div class="text-xs text-neutral-600">Questions: ${e.questions_count}</div>
+            </div>
+            <div class="text-sm font-semibold text-neutral-900">${e.total_points} pts</div>
+          </li>
+        `).join('');
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div>
+              <h2 class="text-base font-semibold text-neutral-900">${c.title}</h2>
+              <div class="text-xs text-neutral-600">Professor: ${teacherLabel(c.teacher)} • ${c.teacher?.email || ''}</div>
+              <div class="text-xs text-neutral-600">Enrolled: ${c.enrolled_count ?? 0}</div>
+              <div class="text-xs text-neutral-600">Created: ${formatDt(c.created_at)}</div>
+            </div>
+            <a href="{% url 'ta_exercise_management' %}" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+              <span class="material-symbols-outlined text-base">edit</span>
+              <span>Manage Tasks</span>
+            </a>
+          </div>
+          <p class="text-sm text-neutral-700">${c.description || ''}</p>
+          <div>
+            <div class="text-sm font-medium text-neutral-700 mb-1">Tasks</div>
+            <ul class="space-y-2">
+              ${exHtml || '<li class="text-neutral-500 text-sm">No tasks yet.</li>'}
+            </ul>
+          </div>
+        `;
+        coursesGridEl.appendChild(card);
+      });
+    }
+
+    async function loadPage() {
+        assistantContext.supabase_user_id = localStorage.getItem('ta_user_id') || null;
+        assistantContext.email = localStorage.getItem('ta_email') || null;
+        assistantContext.assistant_code = storedAssistantCode;
+
+        // 1) Auto-lookup assistant by email/user id if code missing
+        if (!assistantContext.assistant_code || !assistantContext.assistant_id) {
+        try {
+            const lookupRes = await fetch(API_ASSISTANT_LOOKUP, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                supabase_user_id: assistantContext.supabase_user_id,
+                email: assistantContext.email,
+            })
+            });
+            const lookupJson = await lookupRes.json();
+            if (lookupJson?.ok) {
+            assistantContext.assistant_id = lookupJson.assistant?.id || null;
+            assistantContext.assistant_code = lookupJson.assistant?.special_code || assistantContext.assistant_code || null;
+            setAssistantName(lookupJson.assistant?.label, lookupJson.assistant?.email);
+            if (assistantContext.assistant_code) {
+                try { localStorage.setItem('assistantCode', assistantContext.assistant_code); } catch (_) {}
+            }
+            } else {
+            setAssistantName(null, assistantContext.email);
+            }
+        } catch (_) { setAssistantName(null, assistantContext.email); }
+        }
+
+        // 2) Load courses assigned
+        const res = await fetch('/dashboard/assistants/api/courses-assigned/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            assistant_id: assistantContext.assistant_id || 0,
+            assistant_code: assistantContext.assistant_code || '',
+            supabase_user_id: assistantContext.supabase_user_id || '',
+            email: assistantContext.email || '',
+        })
+        });
+        const json = await res.json();
+        if (!json?.ok) {
+        coursesGridEl.innerHTML = '<div class="text-red-600">Unable to load courses.</div>';
+        return;
+        }
+        renderCourses(json.courses || []);
+    }
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      try {
+        localStorage.removeItem('ta_logged_in');
+        localStorage.removeItem('ta_user_id');
+        localStorage.removeItem('ta_email');
+        localStorage.removeItem('assistantCode');
+      } catch (_) {}
+      try { if (sb) await sb.auth.signOut(); } catch (_) {}
+      window.location.href = '{% url "teachers_assistants_login" %}';
+    });
+
+    loadPage();
+  </script>
+</body>
+</html>

@@ -1,0 +1,61 @@
+{% load static %}
+<!-- Reusable Sidebar (role-aware) -->
+<aside class="w-64 bg-neutral-900 text-white h-screen sticky top-0 border-r border-white/10">
+  <div class="p-6">
+    <div class="flex items-center gap-2">
+      <span class="text-lg font-semibold">Better Moodle</span>
+    </div>
+  </div>
+  <nav class="px-2 py-2 space-y-1">
+    {% if sidebar_role == 'assistant' %}
+      {% with p=request.path %}
+      <a href="{% url 'ta_dashboard' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/dashboard/assistants/' in p and p|slice:'-1:' == '/' %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="{% url 'ta_courses_assigned' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/dashboard/assistants/menu/courses-assigned/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span>Courses Assigned</span>
+      </a>
+      <a href="{% url 'ta_exercise_management' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/dashboard/assistants/menu/exercise-management/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">assignment</span>
+        <span>Exercise Management</span>
+      </a>
+      <a href="{% url 'ta_exercise_checkup' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/dashboard/assistants/menu/exercise-checkup/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">checklist</span>
+        <span>Exercise Checkup</span>
+      </a>
+      {% endwith %}
+    {% elif sidebar_role == 'student' %}
+    {% with p=request.path %}
+    <a href="{% url 'students_dashboard' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if p == '/students/' or '/dashboard/student/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Dashboard</span>
+    </a>
+    <a href="{% url 'students_exercises' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors">
+        <span class="material-symbols-outlined">assignment</span>
+        <span>Exercises</span>
+    </a>
+    <a href="{% url 'students_grades' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors">
+        <span class="material-symbols-outlined">grade</span>
+        <span>Grades</span>
+    </a>
+    <a href="{% url 'students_extras' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/students/extras/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">apps</span>
+        <span>Extras</span>
+    </a>
+    {% endwith %}
+    {% else %}
+      {% with p=request.path %}
+      <a href="{% url 'teachers_dashboard' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/teachers/dashboard/' in p or p == '/teachers/' %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">dashboard</span>
+        <span>Dashboard</span>
+      </a>
+      <a href="{% url 'teachers_courses' %}" class="group flex items-center gap-3 rounded-md px-3 py-2 text-sm hover:bg-white/10 transition-colors {% if '/teachers/menu/courses/' in p %}bg-white/10{% endif %}">
+        <span class="material-symbols-outlined">menu_book</span>
+        <span>Courses</span>
+      </a>
+      {% endwith %}
+    {% endif %}
+  </nav>
+</aside>

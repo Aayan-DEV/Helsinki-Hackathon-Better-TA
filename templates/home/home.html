@@ -52,14 +52,14 @@
   <header class="fixed top-0 right-0 p-6">
     <a
         id="login-btn"
-        href="/auth/signup/"
+        href="/auth/login/"
         class="group inline-flex items-center gap-2 rounded-md bg-black/80 text-white px-5 py-2.5 border border-white/20 transition-all duration-300 ease-out hover:bg-black hover:border-white/60 hover:shadow-xl hover:scale-[1.02] active:scale-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-        aria-label="Sign up"
+        aria-label="Log in"
     >
-        <span class="material-symbols-outlined text-xl transition-transform duration-300 ease-out group-hover:translate-x-0.5">person_add</span>
-        <span class="text-sm">Sign up</span>
+        <span class="material-symbols-outlined text-xl transition-transform duration-300 ease-out group-hover:translate-x-0.5">login</span>
+        <span class="text-sm">Log in</span>
     </a>
-    </header>
+  </header>
 
   <!-- Center content (simple hero) -->
   <main class="flex items-center justify-center min-h-screen">
@@ -86,16 +86,54 @@ const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
     : null;
 
 (async () => {
-  const lsLoggedIn = localStorage.getItem('teacher_logged_in') === '1';
-  let hasSession = false;
+  const teacherLoggedIn = localStorage.getItem('teacher_logged_in') === '1';
+  const taLoggedIn = localStorage.getItem('ta_logged_in') === '1';
+
+  if (teacherLoggedIn) {
+    window.location.href = '/dashboard/teacher/';
+    return;
+  }
+  if (taLoggedIn) {
+    window.location.href = '/dashboard/assistants/';
+    return;
+  }
+
+  let uid = null;
   try {
     const { data: { session } } = await sb.auth.getSession();
-    hasSession = !!session?.user?.id;
+    uid = session?.user?.id || null;
   } catch (_) {}
 
-  if (lsLoggedIn || hasSession) {
-    window.location.href = '/dashboard/teacher/';
+  // If we have a Supabase session but no local flags, resolve role via APIs
+  if (uid) {
+    try {
+      // Prefer TA lookup first
+      const resTa = await fetch('/dashboard/assistants/api/assistant/lookup/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabase_user_id: uid })
+      });
+      const jsTa = await resTa.json();
+      if (jsTa?.ok) {
+        window.location.href = '/dashboard/assistants/';
+        return;
+      }
+    } catch (_) {}
+
+    try {
+      const resTeacher = await fetch('/teachers/api/teacher/info/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: uid })
+      });
+      const jsTeacher = await resTeacher.json();
+      if (jsTeacher?.ok) {
+        window.location.href = '/dashboard/teacher/';
+        return;
+      }
+    } catch (_) {}
   }
+  // Otherwise, stay on Home and show the login button
 })();
 </script>
 </html>

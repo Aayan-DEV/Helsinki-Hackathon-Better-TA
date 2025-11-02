@@ -1,0 +1,344 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Add Exercise</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' %}
+
+    <main class="flex-1" data-course-id="{% if course and course.id %}{{ course.id }}{% else %}0{% endif %}">
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">assignment</span>
+            {% if course %}
+              <h1 class="text-xl font-semibold text-neutral-900">Add Exercise — {{ course.title }}</h1>
+            {% else %}
+              <h1 class="text-xl font-semibold text-neutral-900">Course not found</h1>
+            {% endif %}
+          </div>
+          {% if course %}
+          <a href="{% url 'teachers_course_detail' course.id %}" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+            <span class="material-symbols-outlined">arrow_back</span>
+            <span>Back to Course</span>
+          </a>
+          {% endif %}
+        </div>
+      </header>
+
+      {% if course %}
+      <section class="max-w-6xl mx-auto px-6 py-6">
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm">
+          <div class="px-6 pt-6">
+            <h2 class="text-lg font-semibold text-neutral-900">Exercise Details</h2>
+            <p class="mt-1 text-sm text-neutral-600">Choose between a single exercise or separate questions.</p>
+          </div>
+
+          <div class="px-6 mt-4">
+            <div class="inline-flex rounded-md border border-neutral-200 overflow-hidden">
+              <button id="tabSingle" class="px-4 py-2 text-sm bg-neutral-900 text-white">Single Exercise</button>
+              <button id="tabMulti" class="px-4 py-2 text-sm bg-white text-neutral-900 hover:bg-neutral-50">Separate Questions</button>
+            </div>
+          </div>
+
+          <div class="px-6 mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <label class="text-sm text-neutral-700">Title</label>
+              <input id="exTitle" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., Algebra Basics" required>
+            </div>
+            <div>
+              <label class="text-sm text-neutral-700">Start Time</label>
+              <input id="exStart" type="datetime-local" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400">
+            </div>
+            <div>
+              <label class="text-sm text-neutral-700">Deadline</label>
+              <input id="exDeadline" type="datetime-local" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400">
+            </div>
+          </div>
+
+          <!-- Single Exercise -->
+          <div id="singleBox" class="px-6 mt-4">
+            <div>
+              <label class="text-sm text-neutral-700">Exercise Details</label>
+              <textarea id="exDetails" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" rows="6" placeholder="Describe the exercise..."></textarea>
+            </div>
+            <div class="mt-4">
+              <label class="text-sm text-neutral-700">Points</label>
+              <input id="exPoints" type="number" min="0" class="mt-1 w-48 rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., 100">
+            </div>
+          </div>
+
+          <!-- Separate Questions -->
+          <div id="multiBox" class="px-6 mt-4 hidden">
+            <div>
+              <label class="text-sm text-neutral-700">Optional Description</label>
+              <textarea id="exDetailsMulti" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" rows="4" placeholder="Describe the set of questions..."></textarea>
+            </div>
+            <div class="mt-4">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-medium text-neutral-900">Questions</h3>
+                <button id="addQuestionBtn" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 text-white px-3 py-1.5 hover:bg-indigo-700">
+                  <span class="material-symbols-outlined text-sm">add</span>
+                  <span>Add Question</span>
+                </button>
+              </div>
+              <div id="questionsList" class="mt-3 space-y-3"></div>
+              <p class="mt-2 text-xs text-neutral-600">Total points: <span id="questionsTotal" class="font-semibold">0</span></p>
+            </div>
+          </div>
+
+          <div class="px-6 py-6 border-t border-neutral-200 mt-6 bg-neutral-50 flex items-center justify-end gap-3">
+            <button id="cancelBtn" class="rounded-md px-4 py-2 border border-neutral-300 text-neutral-700 hover:bg-neutral-100">Cancel</button>
+            <button id="saveBtn" class="rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed">Save Exercise</button>
+          </div>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+
+  
+<script>
+  const container = document.querySelector('main[data-course-id]');
+  const courseId = parseInt(container?.dataset?.courseId || '0', 10);
+  const params = new URLSearchParams(location.search);
+  const exerciseId = parseInt(params.get('exercise_id') || '0', 10);
+
+  const EXERCISE_CREATE_URL = "{% url 'teachers_api_exercise_create' %}";
+  const EXERCISE_GET_URL    = "{% url 'teachers_api_exercise_get' %}";
+  const EXERCISE_UPDATE_URL = "{% url 'teachers_api_exercise_update' %}";
+
+  const tabSingle = document.getElementById('tabSingle');
+  const tabMulti = document.getElementById('tabMulti');
+  const singleBox = document.getElementById('singleBox');
+  const multiBox = document.getElementById('multiBox');
+
+  const exTitle = document.getElementById('exTitle');
+  const exStart = document.getElementById('exStart');
+  const exDeadline = document.getElementById('exDeadline');
+
+  const exDetails = document.getElementById('exDetails');
+  const exPoints = document.getElementById('exPoints');
+
+  const exDetailsMulti = document.getElementById('exDetailsMulti');
+  const addQuestionBtn = document.getElementById('addQuestionBtn');
+  const questionsList = document.getElementById('questionsList');
+  const questionsTotal = document.getElementById('questionsTotal');
+
+  const cancelBtn = document.getElementById('cancelBtn');
+  const saveBtn = document.getElementById('saveBtn');
+
+  let mode = 'single';
+
+  function setMode(m) {
+    mode = m;
+    if (m === 'single') {
+      tabSingle.classList.remove('bg-white', 'text-neutral-900', 'hover:bg-neutral-50');
+      tabSingle.classList.add('bg-neutral-900', 'text-white');
+
+      tabMulti.classList.remove('bg-neutral-900', 'text-white');
+      tabMulti.classList.add('bg-white', 'text-neutral-900', 'hover:bg-neutral-50');
+
+      singleBox.classList.remove('hidden');
+      multiBox.classList.add('hidden');
+    } else {
+      tabMulti.classList.remove('bg-white', 'text-neutral-900', 'hover:bg-neutral-50');
+      tabMulti.classList.add('bg-neutral-900', 'text-white');
+
+      tabSingle.classList.remove('bg-neutral-900', 'text-white');
+      tabSingle.classList.add('bg-white', 'text-neutral-900', 'hover:bg-neutral-50');
+
+      singleBox.classList.add('hidden');
+      multiBox.classList.remove('hidden');
+    }
+  }
+  tabSingle.addEventListener('click', () => setMode('single'));
+  tabMulti.addEventListener('click', () => setMode('multi'));
+  setMode(mode);
+
+    
+    function questionRow(initial = {}) {
+      const wrapper = document.createElement('div');
+      wrapper.className = 'rounded-md border border-neutral-200 bg-white p-3';
+      wrapper.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div class="md:col-span-2">
+            <label class="text-xs text-neutral-600">Question</label>
+            <textarea class="q-text mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" rows="3" placeholder="Enter question...">${initial.text || ''}</textarea>
+          </div>
+          <div>
+            <label class="text-xs text-neutral-600">Points</label>
+            <input type="number" min="0" class="q-points mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., 10" value="${initial.points || ''}">
+          </div>
+        </div>
+        <div class="mt-2 flex items-center justify-end">
+          <button class="q-remove inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-100">
+            <span class="material-symbols-outlined text-xs">close</span>
+            <span>Remove</span>
+          </button>
+        </div>
+      `;
+      const ptsEl = wrapper.querySelector('.q-points');
+      const txtEl = wrapper.querySelector('.q-text');
+      const removeBtn = wrapper.querySelector('.q-remove');
+
+      function recompute() {
+        let total = 0;
+        questionsList.querySelectorAll('.q-points').forEach(el => {
+          const v = parseInt((el.value || '0'), 10);
+          if (!isNaN(v)) total += v;
+        });
+        questionsTotal.textContent = String(total);
+      }
+      ptsEl.addEventListener('input', recompute);
+      removeBtn.addEventListener('click', () => {
+        wrapper.remove();
+        recompute();
+      });
+
+      return wrapper;
+    }
+
+    async function loadExercise() {
+    if (!exerciseId || !courseId) return;
+    const userId = localStorage.getItem('teacher_user_id');
+    try {
+      const res = await fetch(EXERCISE_GET_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: courseId, exercise_id: exerciseId })
+      });
+      const j = await res.json();
+      if (!j?.ok) throw new Error(j?.error || 'Failed to load exercise');
+      const ex = j.exercise || {};
+      const qs = j.questions || [];
+
+      exTitle.value = ex.title || '';
+      if (ex.start_time) exStart.value = (ex.start_time || '').slice(0, 16);
+      if (ex.deadline) exDeadline.value = (ex.deadline || '').slice(0, 16);
+
+      if (qs.length) {
+        setMode('multi');
+        exDetailsMulti.value = ex.details || '';
+        questionsList.innerHTML = '';
+        qs.forEach(q => questionsList.appendChild(questionRow({ text: q.text, points: q.points })));
+        let total = 0;
+        questionsList.querySelectorAll('.q-points').forEach(el => {
+          const v = parseInt((el.value || '0'), 10);
+          if (!isNaN(v)) total += v;
+        });
+        questionsTotal.textContent = String(total);
+      } else {
+        setMode('single');
+        exDetails.value = ex.details || '';
+        exPoints.value = ex.total_points || '';
+      }
+
+      window.showMessage?.('Loaded exercise for editing.', 'info', 4000);
+    } catch (e) {
+      window.showMessage?.(e?.message || 'Failed to load exercise', 'error', 8000);
+    }
+  }
+
+    addQuestionBtn.addEventListener('click', () => {
+      questionsList.appendChild(questionRow());
+      // Update total
+      let total = 0;
+      questionsList.querySelectorAll('.q-points').forEach(el => {
+        const v = parseInt((el.value || '0'), 10);
+        if (!isNaN(v)) total += v;
+      });
+      questionsTotal.textContent = String(total);
+    });
+
+    cancelBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (courseId) {
+        location.href = "{% url 'teachers_course_detail' 0 %}".replace('0', String(courseId));
+      }
+    });
+
+    saveBtn.addEventListener('click', async () => {
+    const userId = localStorage.getItem('teacher_user_id');
+    if (!courseId || !userId) {
+      window.showMessage?.('Missing course or user context.', 'error', 6000);
+      return;
+    }
+    const title = (exTitle.value || '').trim();
+    if (!title) {
+      window.showMessage?.('Please enter a title.', 'error', 6000);
+      exTitle.focus();
+      return;
+    }
+    saveBtn.disabled = true;
+
+    const payload = {
+      user_id: userId,
+      course_id: courseId,
+      title,
+      mode,
+      start_time: exStart.value || '',
+      deadline: exDeadline.value || '',
+    };
+    if (exerciseId) payload.exercise_id = exerciseId;
+
+    if (mode === 'single') {
+      payload.details = (exDetails.value || '').trim();
+      payload.points = exPoints.value ? parseInt(exPoints.value, 10) : null;
+    } else {
+      payload.details = (exDetailsMulti.value || '').trim();
+      const qs = [];
+      questionsList.querySelectorAll('.rounded-md.border.border-neutral-200.bg-white.p-3').forEach((row) => {
+        const textEl = row.querySelector('.q-text');
+        const ptsEl = row.querySelector('.q-points');
+        const text = (textEl?.value || '').trim();
+        const points = ptsEl?.value ? parseInt(ptsEl.value, 10) : 0;
+        if (text) qs.push({ text, points });
+      });
+      payload.questions = qs;
+    }
+
+    try {
+      const endpoint = exerciseId ? EXERCISE_UPDATE_URL : EXERCISE_CREATE_URL;
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+      const j = await res.json();
+      if (!j?.ok) throw new Error(j?.error || 'Failed to save exercise');
+      window.showMessage?.(exerciseId ? 'Exercise updated.' : 'Exercise saved.', 'success', 6000);
+      location.href = "{% url 'teachers_course_detail' 0 %}".replace('0', String(courseId));
+    } catch (e) {
+      window.showMessage?.(e?.message || 'Failed to save exercise', 'error', 8000);
+    } finally {
+      saveBtn.disabled = false;
+    }
+  });
+
+  if (exerciseId) {
+    loadExercise();
+  }
+</script>
+</body>
+</html>

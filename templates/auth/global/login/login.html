@@ -1,0 +1,86 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Log in</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <main class="min-h-full flex items-center justify-center p-6">
+    <section class="w-full max-w-2xl bg-white rounded-lg border border-neutral-200 shadow-sm">
+      <div class="p-6">
+        <h1 class="text-2xl font-semibold text-neutral-900">Log in</h1>
+        <p class="mt-1 text-sm text-neutral-600">Choose how you want to sign in.</p>
+
+        <div class="mt-4 grid grid-cols-1 gap-3">
+        <a href="/auth/teachers/login/" class="inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+            <span class="material-symbols-outlined">school</span>
+            <span>Log in as Teacher</span>
+        </a>
+        <a href="/auth/teachers_assistants/login/" class="inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+            <span class="material-symbols-outlined">group</span>
+            <span>Log in as Teacher’s Assistant</span>
+        </a>
+        <!-- New: Student login -->
+        <a href="/auth/students/login/" class="inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+            <span class="material-symbols-outlined">person</span>
+            <span>Log in as Student</span>
+        </a>
+        </div>
+
+        <div class="flex items-center gap-4 my-6">
+          <div class="h-px bg-neutral-200 flex-1"></div>
+          <span class="text-xs text-neutral-500">Or</span>
+          <div class="h-px bg-neutral-200 flex-1"></div>
+        </div>
+
+        <p class="text-sm text-neutral-700">
+          Don’t have an account?
+          <a href="/auth/signup/" class="underline text-neutral-900">Sign up</a>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, {
+          auth: { persistSession: true, autoRefreshToken: true }
+        })
+      : null;
+
+    (async () => {
+      if (!sb) return;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        const confirmedAt = session?.user?.email_confirmed_at;
+        if (uid && confirmedAt) {
+          window.location.href = '/dashboard/teacher/';
+        }
+      } catch (_) {}
+    })();
+  </script>
+</body>
+</html>

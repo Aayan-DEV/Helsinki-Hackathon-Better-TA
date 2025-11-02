@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Exercise Checkoff</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'] },
+      }},
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <style>
+    /* Bigger boxes, clear hierarchy, mobile-friendly spacing */
+    .check-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border: 1px solid #e5e7eb; /* neutral-200 */
+      background: #fff;
+      border-radius: 0.5rem;
+      padding: 0.9rem 1rem;
+      font-size: 1rem;
+      line-height: 1.5;
+    }
+    .check-label { color: #111827; } /* neutral-900 */
+    .check-cb { width: 1.25rem; height: 1.25rem; }
+    /* Indentation like a file directory; can go deeper if needed */
+    .indent-0 { padding-left: 1rem; }
+    .indent-1 { padding-left: 1.75rem; }
+    .indent-2 { padding-left: 2.5rem; }
+    .indent-3 { padding-left: 3.25rem; }
+    .indent-4 { padding-left: 4rem; }
+    .indent-5 { padding-left: 4.75rem; }
+    .indent-6 { padding-left: 5.5rem; }
+    @media (max-width: 640px) {
+      .check-row { padding: 1rem; }
+    }
+  </style>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  <main class="mx-auto px-4 sm:px-6 py-6 sm:py-8 max-w-2xl">
+    <div class="rounded-lg border border-neutral-200 bg-white p-6 sm:p-7 shadow-sm">
+      <h1 id="formTitle" class="text-2xl sm:text-3xl font-semibold text-neutral-900">Exercise Checkoff</h1>
+      <p class="text-sm sm:text-base text-neutral-600 mt-2">Please enter your details and tick completed items.</p>
+
+      <form id="checkoffForm" class="mt-5 space-y-5">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+          <div>
+            <label class="text-sm text-neutral-700">Student ID Number</label>
+            <input id="studentIdInput" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-4 py-3 text-base" required />
+          </div>
+          <div>
+            <label class="text-sm text-neutral-700">Your Name</label>
+            <input id="studentNameInput" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-4 py-3 text-base" required />
+          </div>
+        </div>
+        <div id="checkboxGrid" class="mt-2 space-y-3">
+          <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Loading checklist…</div>
+        </div>
+        <div class="pt-2 flex items-center justify-end">
+          <button class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2.5 text-sm sm:text-base hover:bg-black" type="submit">
+            <span class="material-symbols-outlined text-sm">check_circle</span>
+            <span>Submit</span>
+          </button>
+        </div>
+      </form>
+
+      <div id="successBlock" class="hidden mt-4 rounded-md border border-green-200 bg-green-50 p-4">
+        <div class="flex items-center gap-2 text-green-700 text-sm">
+          <span class="material-symbols-outlined">task_alt</span>
+          <span>Submission received. Thank you!</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+<script>
+const API_GET_PUBLIC = "{% url 'ta_api_session_get_public' %}";
+const API_SUBMIT_PUBLIC = "{% url 'ta_api_session_submit_public' %}";
+
+const slug = "{{ slug|default:'' }}";
+
+const formEl = document.getElementById('checkoffForm');
+const formTitleEl = document.getElementById('formTitle');
+const studentIdInput = document.getElementById('studentIdInput');
+const studentNameInput = document.getElementById('studentNameInput');
+const checkboxGridEl = document.getElementById('checkboxGrid');
+const successBlockEl = document.getElementById('successBlock');
+
+let checkablePaths = [];
+
+function computeDepth(path) {
+  // Base depth = number of segments after the first (Qn)
+  const parts = (path || '').split('.');
+  let depth = Math.max(0, parts.length - 1);
+  // Treat letter+number (e.g., c1, a2) as one more nested level
+  const leaf = parts[parts.length - 1] || '';
+  if (/^[a-z][0-9]+$/i.test(leaf)) depth += 1;
+  return Math.min(depth, 6);
+}
+
+function renderCheckboxes(paths) {
+  checkboxGridEl.innerHTML = '';
+  if (!paths.length) {
+    checkboxGridEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No items available</div>';
+    return;
+  }
+  paths.forEach(p => {
+    const depth = computeDepth(p);
+    const row = document.createElement('label');
+    row.className = `check-row indent-${depth}`;
+    const left = document.createElement('div');
+    left.className = 'check-label';
+    left.textContent = p;
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.value = p;
+    cb.className = 'check-cb ml-3';
+    row.appendChild(left);
+    row.appendChild(cb);
+    checkboxGridEl.appendChild(row);
+  });
+}
+
+async function loadSession() {
+  const res = await fetch(API_GET_PUBLIC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug }) });
+  const js = await res.json();
+  if (!js.ok) {
+    checkboxGridEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Session not available</div>';
+    return;
+  }
+  formTitleEl.textContent = js.session.title || 'Exercise Checkoff';
+  checkablePaths = js.session.checkable_paths || [];
+  renderCheckboxes(checkablePaths);
+}
+
+formEl.addEventListener('submit', async (evt) => {
+  evt.preventDefault();
+  const id = (studentIdInput.value || '').trim();
+  const name = (studentNameInput.value || '').trim();
+  const answers = Array.from(checkboxGridEl.querySelectorAll('input[type="checkbox"]')).filter(cb => cb.checked).map(cb => cb.value);
+  if (!id || !name) return alert('Please enter your ID and name.');
+  const res = await fetch(API_SUBMIT_PUBLIC, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug, student_id: id, student_name: name, answers }) });
+  const js = await res.json();
+  if (!js.ok) return alert(js.error || 'Failed to submit');
+  successBlockEl.classList.remove('hidden');
+  formEl.classList.add('hidden');
+});
+
+loadSession();
+</script>
+</body>
+</html>

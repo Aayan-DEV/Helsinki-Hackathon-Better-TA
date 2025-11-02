@@ -1,5 +1,13 @@
 from django.contrib import admin
-from .models import Teacher, TeacherCode
+from .models import Teacher, TeacherCode, Course
+from teachers_assistants_dash.models import CourseAssistant
+
+class CourseAssistantInline(admin.TabularInline):
+    model = CourseAssistant
+    extra = 0
+    fields = ('assistant', 'assigned_at')
+    readonly_fields = ('assigned_at',)
+    show_change_link = True
 
 class TeacherInline(admin.TabularInline):
     model = Teacher
@@ -23,10 +31,24 @@ class TeacherCodeAdmin(admin.ModelAdmin):
         return obj.teachers.count()
     teacher_count.short_description = 'Teachers'
 
-# Standalone Teacher admin for direct management
 @admin.register(Teacher)
 class TeacherAdmin(admin.ModelAdmin):
     list_display = ('user_uid', 'title', 'first_name', 'last_name', 'email', 'email_confirmed', 'created_at')
     search_fields = ('user_uid', 'first_name', 'last_name', 'email', 'special_code')
     readonly_fields = ('user_uid', 'user_id', 'created_at', 'email_confirmed')
     list_filter = ('email_confirmed', 'title')
+
+@admin.register(Course)
+class CourseAdmin(admin.ModelAdmin):
+    list_display = ('title', 'teacher', 'enrolled_count', 'created_at')
+    search_fields = ('title', 'teacher__email')
+    list_filter = ('created_at',)
+    autocomplete_fields = ('students',)
+
+    def save_related(self, request, form, formsets, change):
+        super().save_related(request, form, formsets, change)
+        obj = form.instance
+        obj.enrolled_count = obj.students.count()
+        obj.save(update_fields=['enrolled_count'])
+
+    inlines = [CourseAssistantInline]

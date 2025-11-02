@@ -139,6 +139,10 @@
             <button id="resendBtn" type="button" class="underline text-neutral-900">Resend confirmation</button>
           </div>
         </form>
+        <div class="mt-4 text-sm text-neutral-700">
+          Already have an account?
+          <a href="{% url 'teachers_login' %}" class="underline text-neutral-900">Log in</a>
+        </div>
       </div>
     </section>
   </main>
@@ -431,116 +435,145 @@
 
     // Form submit
     document.getElementById('teacherSignupForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      updateFormValidity();
+    e.preventDefault();
+    updateFormValidity();
 
-      const reasons = collectInvalidReasons();
-      if (reasons.length > 0) {
-        if (typeof showMessage === 'function') {
-          showMessage(`Fix the following: ${reasons.join(' ')}`, 'error', 12000);
-        }
+    const reasons = collectInvalidReasons();
+    if (reasons.length > 0) {
+      if (typeof showMessage === 'function') {
+        showMessage(`Fix the following: ${reasons.join(' ')}`, 'error', 12000);
+      }
+      return;
+    }
+    if (!sb) {
+      if (typeof showMessage === 'function') {
+        showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+      }
+      return;
+    }
+
+    signupBtn.disabled = true;
+    signupBtn.textContent = 'Creating account...';
+
+    const payload = {
+      first_name: firstNameEl.value.trim(),
+      last_name: lastNameEl.value.trim(),
+      title: titleEl.value.trim(),
+      special_code: specialCodeEl.value.trim(),
+      email: emailEl.value.trim(),
+      password: passwordEl.value,
+      phone_local: digitsOnly(phoneLocalEl.value.trim())
+    };
+
+    try {
+      // 1) Validate teacher code before any signup
+      const vres = await fetch('/teachers/validate-code/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ special_code: payload.special_code })
+      });
+      if (!vres.ok) {
+        let msg = 'Special Teachers Code validation failed.';
+        try { const vjson = await vres.json(); msg = vjson?.error || msg; } catch (_) {}
+        if (typeof showMessage === 'function') showMessage(msg, 'error', 10000);
+        signupBtn.disabled = false;
+        signupBtn.textContent = 'Create Account';
         return;
       }
-      if (!sb) {
-        if (typeof showMessage === 'function') {
-          showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+
+      // 2) Supabase signup (will send confirmation email)
+      const { data, error } = await sb.auth.signUp({
+        email: payload.email,
+        password: payload.password,
+        options: {
+          data: {
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            title: payload.title,
+            phone_local: payload.phone_local
+          },
+          emailRedirectTo: REDIRECT_URL
         }
-        return;
-      }
+      });
 
-      signupBtn.disabled = true;
-      signupBtn.textContent = 'Creating account...';
-
-      const payload = {
-        first_name: firstNameEl.value.trim(),
-        last_name: lastNameEl.value.trim(),
-        title: titleEl.value.trim(),
-        special_code: specialCodeEl.value.trim(),
-        email: emailEl.value.trim(),
-        password: passwordEl.value,
-        phone_local: digitsOnly(phoneLocalEl.value.trim())
-      };
-
-      try {
-        // Supabase signup (will send confirmation email)
-        const { data, error } = await sb.auth.signUp({
-            email: payload.email,
-            password: payload.password,
-            options: {
-            data: {
-                first_name: payload.first_name,
-                last_name: payload.last_name,
-                title: payload.title,
-                phone_local: payload.phone_local
-            },
-            emailRedirectTo: REDIRECT_URL
+      // Handle Supabase throttling by falling back to server-side resend immediately
+      if (error) {
+        const throttled = (error?.status === 429) || /only request this after/i.test(error?.message || '');
+        if (throttled) {
+          if (typeof showMessage === 'function') {
+            showMessage('A confirmation was sent recently. Resending and opening your confirmation link…', 'success', 10000);
+          }
+          confirmHelp.classList.remove('hidden');
+          resendBtn.onclick = () => resendConfirmation(payload.email);
+          try {
+            const r = await fetch('/teachers/resend-confirmation/', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: payload.email })
+            });
+            const j = await r.json();
+            if (j?.ok && j?.confirm_link) {
+              window.location.href = j.confirm_link;
             }
-        });
-
-        if (error) {
-          const msg = error.message || 'Signup failed.';
-          const code = error.status ? `status ${error.status}` : '';
-          let hint = '';
-          if (/already/i.test(msg)) hint = 'Hint: If you already have an account, use password reset.';
-          else if (/rate|limit/i.test(msg)) hint = 'Hint: Wait briefly and try again.';
-          else if (/password/i.test(msg)) hint = 'Hint: Adjust password to meet all rules.';
-          if (typeof showMessage === 'function') showMessage(`Signup failed (${code}). ${msg} ${hint}`, 'error', 12000);
+          } catch (_) {}
           signupBtn.disabled = false;
           signupBtn.textContent = 'Create Account';
           return;
         }
 
-        const userId = data?.user?.id || null;
-
-        // Inform user to confirm their email
-        if (typeof showMessage === 'function') {
-          showMessage(`We sent a confirmation email to ${payload.email}. Please confirm to activate your account. After confirming, you'll be redirected back here automatically.`, 'success', 14000);
-        }
-
-        // Record teacher in Django (safe to do pre-confirm; uses get_or_create)
-        if (userId) {
-          const res = await fetch('/teachers/register/', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              supabase_user_id: userId,
-              first_name: payload.first_name,
-              last_name: payload.last_name,
-              title: payload.title,
-              email: payload.email,
-              phone: `+358${payload.phone_local}`,
-              special_code: payload.special_code
-            })
-          });
-
-          if (!res.ok) {
-            let msg = 'Teacher code validation failed.';
-            try {
-              const detail = await res.json();
-              msg = detail?.error || detail?.detail || msg;
-            } catch (_) {}
-            const hint = 'Hint: Verify the Special Teachers Code with your school admin; it must exist and be active.';
-            if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
-          }
-        }
-
-        // Enable "Resend confirmation" helper
-        window.__teacherSignupEmail = payload.email;
-        window.__teacherSignupUserId = userId;
-        confirmHelp.classList.remove('hidden');
-        resendBtn.onclick = () => resendConfirmation(window.__teacherSignupEmail);
-
-        // Reset button but keep the form visible while waiting for email confirmation
-        signupBtn.disabled = false;
-        signupBtn.textContent = 'Create Account';
-      } catch (err) {
-        const msg = err?.message || 'Unexpected error during signup.';
-        const hint = 'Hint: Check network connectivity and server logs for details.';
-        if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
-        signupBtn.disabled = false;
-        signupBtn.textContent = 'Create Account';
+        // Other errors
+        throw error;
       }
-    });
-  </script>
+
+      const userId = data?.user?.id || null;
+
+      if (typeof showMessage === 'function') {
+        showMessage(`We sent a confirmation email to ${payload.email}. Please confirm to activate your account. After confirming, you'll be redirected automatically.`, 'success', 14000);
+      }
+
+      // 3) Record teacher in Django after successful signup
+      if (userId) {
+        const res = await fetch('/teachers/register/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supabase_user_id: userId,
+            first_name: payload.first_name,
+            last_name: payload.last_name,
+            title: payload.title,
+            email: payload.email,
+            phone: `+358${payload.phone_local}`,
+            special_code: payload.special_code
+          })
+        });
+
+        if (!res.ok) {
+          let msg = 'Teacher registration failed.';
+          try {
+            const detail = await res.json();
+            msg = detail?.error || detail?.detail || msg;
+          } catch (_) {}
+          const hint = 'Hint: Verify the Special Teachers Code with your school admin.';
+          if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
+        }
+      }
+
+      // Enable "Resend confirmation" helper
+      window.__teacherSignupEmail = payload.email;
+      window.__teacherSignupUserId = userId;
+      confirmHelp.classList.remove('hidden');
+      resendBtn.onclick = () => resendConfirmation(window.__teacherSignupEmail);
+
+      signupBtn.disabled = false;
+      signupBtn.textContent = 'Create Account';
+    } catch (err) {
+      const msg = err?.message || 'Unexpected error during signup.';
+      const hint = 'Hint: Check network connectivity and server logs for details.';
+      if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
+      signupBtn.disabled = false;
+      signupBtn.textContent = 'Create Account';
+    }
+  });
+</script>
 </body>
 </html>

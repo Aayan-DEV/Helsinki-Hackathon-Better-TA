@@ -1,0 +1,250 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teacher’s Assistant Login</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <main class="min-h-full flex items-center justify-center p-6">
+    <section class="w-full max-w-2xl bg-white rounded-lg border border-neutral-200 shadow-sm">
+      <div class="p-6">
+        <h1 class="text-2xl font-semibold text-neutral-900">Log in to your Teacher’s Assistant account</h1>
+        <p class="mt-1 text-sm text-neutral-600">Sign in with Google or use your email.</p>
+
+        <button id="googleBtn" class="mt-4 w-full inline-flex items-center justify-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+          <span class="material-symbols-outlined">login</span>
+          <span>Continue with Google</span>
+        </button>
+
+        <div class="flex items-center gap-4 my-6">
+          <div class="h-px bg-neutral-200 flex-1"></div>
+          <span class="text-xs text-neutral-500">Or</span>
+          <div class="h-px bg-neutral-200 flex-1"></div>
+        </div>
+
+        <form id="assistantLoginForm" class="space-y-4" novalidate>
+          <div>
+            <label class="text-sm text-neutral-700">Email</label>
+            <div class="mt-1 relative">
+              <input id="email" type="email" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="you@example.com" required>
+              <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">mail</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-sm text-neutral-700">Password</label>
+            <div class="mt-1 relative">
+              <input id="password" type="password" class="w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="********" required>
+              <span class="material-symbols-outlined absolute right-3 top-1/2 -translate-y-1/2 text-neutral-500">lock</span>
+            </div>
+          </div>
+
+          <button id="loginBtn" class="mt-2 w-full rounded-md bg-neutral-900 text-white px-4 py-2.5 transition-colors hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+            Log In
+          </button>
+
+          <div class="mt-2 flex items-center justify-between">
+            <button id="resetPwBtn" type="button" class="text-sm underline text-neutral-900">Forgot password?</button>
+            <div id="confirmHelp" class="text-xs text-neutral-600 hidden">
+              Didn’t receive the email?
+              <button id="resendBtn" type="button" class="underline text-neutral-900">Resend confirmation</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    const REDIRECT_URL = "{{ request.scheme }}://{{ request.get_host }}{% url 'teachers_assistants_login' %}";
+
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const loginBtn = document.getElementById('loginBtn');
+    const googleBtn = document.getElementById('googleBtn');
+    const resetPwBtn = document.getElementById('resetPwBtn');
+    const confirmHelp = document.getElementById('confirmHelp');
+    const resendBtn = document.getElementById('resendBtn');
+
+    function emailValid() { return emailEl.validity.valid; }
+    function allRequiredFilled() { return emailEl.value.trim() && passwordEl.value; }
+    function updateFormValidity() {
+      const ok = emailValid() && allRequiredFilled();
+      loginBtn.disabled = !ok;
+    }
+    [emailEl, passwordEl].forEach(el => el.addEventListener('input', updateFormValidity));
+    updateFormValidity();
+
+    function resendConfirmation(email) {
+      (async () => {
+        try {
+          const res = await fetch('/assistants/resend-confirmation/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email })
+          });
+          const json = await res.json();
+          if (!json?.ok) throw new Error(json?.error || 'Resend failed.');
+          if (json?.confirm_link) {
+            if (typeof showMessage === 'function') showMessage('Opening your confirmation link…', 'success', 6000);
+            window.location.href = json.confirm_link;
+            return;
+          }
+          if (typeof showMessage === 'function') {
+            showMessage(`Confirmation email resent to ${email}.`, 'success', 8000);
+          }
+        } catch (e) {
+          const msg = e?.message || 'Resend failed.';
+          if (typeof showMessage === 'function') showMessage(msg, 'error', 10000);
+        }
+      })();
+    }
+
+    (async () => {
+      if (!sb) return;
+      try {
+        const { data: { session } } = await sb.auth.getSession();
+        const uid = session?.user?.id;
+        const confirmedAt = session?.user?.email_confirmed_at;
+        if (uid && confirmedAt) {
+          try {
+            localStorage.setItem('ta_logged_in', '1');
+            localStorage.setItem('ta_user_id', uid);
+            localStorage.setItem('ta_email', session.user.email || '');
+          } catch (_) {}
+          window.location.href = '/dashboard/assistants/';
+        }
+      } catch (_) {}
+    })();
+
+    googleBtn.addEventListener('click', async () => {
+      if (!sb) {
+        if (typeof showMessage === 'function') {
+          showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+        }
+        return;
+      }
+      try {
+        await sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: REDIRECT_URL }
+        });
+      } catch (e) {
+        const msg = e?.message || 'Google sign-in failed.';
+        const hint = 'Hint: Check client ID/secret and redirect URI in Google Console.';
+        if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 10000);
+      }
+    });
+
+    resetPwBtn.addEventListener('click', async () => {
+      if (!sb) return;
+      const email = (emailEl.value || '').trim();
+      if (!email) {
+        if (typeof showMessage === 'function') showMessage('Enter your email first.', 'error', 6000);
+        return;
+      }
+      try {
+        await sb.auth.resetPasswordForEmail(email, { redirectTo: REDIRECT_URL });
+        if (typeof showMessage === 'function') showMessage('Password reset email sent.', 'success', 6000);
+      } catch (e) {
+        const msg = e?.message || 'Password reset failed.';
+        if (typeof showMessage === 'function') showMessage(msg, 'error', 8000);
+      }
+    });
+
+    document.getElementById('assistantLoginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      updateFormValidity();
+
+      if (!sb) {
+        if (typeof showMessage === 'function') {
+          showMessage('Supabase not configured: set SUPABASE_URL and SUPABASE_ANON_KEY.', 'error', 8000);
+        }
+        return;
+      }
+
+      loginBtn.disabled = true;
+      loginBtn.textContent = 'Logging in…';
+
+      try {
+        const { data, error } = await sb.auth.signInWithPassword({
+          email: emailEl.value.trim(),
+          password: passwordEl.value
+        });
+        if (error) throw error;
+
+        const user = data?.user || null;
+        const uid = user?.id || null;
+        const confirmedAt = user?.email_confirmed_at || null;
+
+        if (!uid) throw new Error('No user session returned.');
+
+        let redirectTo = '/dashboard/assistants/';
+        try {
+          const res = await fetch('/assistants/confirm-signup/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ supabase_user_id: uid })
+          });
+          const json = await res.json();
+          if (json?.ok && json?.redirect_to) redirectTo = json.redirect_to;
+        } catch (_) {}
+
+        if (!confirmedAt) {
+          if (typeof showMessage === 'function') {
+            showMessage('Your email isn’t confirmed yet. Please check your inbox. You can resend the confirmation link.', 'error', 12000);
+          }
+          confirmHelp.classList.remove('hidden');
+          resendBtn.onclick = () => resendConfirmation(emailEl.value.trim());
+          loginBtn.disabled = false;
+          loginBtn.textContent = 'Log In';
+          return;
+        }
+
+        try {
+          localStorage.setItem('ta_logged_in', '1');
+          localStorage.setItem('ta_user_id', uid);
+          localStorage.setItem('ta_email', user?.email || '');
+        } catch (_) {}
+
+        if (typeof showMessage === 'function') {
+          showMessage('Logged in successfully. Redirecting…', 'success', 6000);
+        }
+        window.location.href = redirectTo;
+      } catch (err) {
+        const msg = err?.message || 'Login failed.';
+        const hint = 'Hint: Check email and password or reset your password.';
+        if (typeof showMessage === 'function') showMessage(`${msg} ${hint}`, 'error', 12000);
+        loginBtn.disabled = false;
+        loginBtn.textContent = 'Log In';
+      }
+    });
+  </script>
+</body>
+</html>

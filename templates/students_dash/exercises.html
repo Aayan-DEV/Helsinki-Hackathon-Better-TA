@@ -1,0 +1,589 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Exercises</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='student' %}
+
+    <main class="flex-1">
+      <!-- Header -->
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">assignment</span>
+            <h1 class="text-xl font-semibold text-neutral-900">My Exercises</h1>
+          </div>
+          <div class="relative">
+            <button id="studentNameBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+              <span class="material-symbols-outlined text-base">person</span>
+              <span class="text-sm">{{ student_email|default:"" }}</span>
+              <span class="material-symbols-outlined text-base">expand_more</span>
+            </button>
+            <div id="profileMenu" class="absolute right-0 mt-2 w-56 rounded-md bg-white border border-neutral-200 shadow-lg hidden">
+              <div class="px-3 py-2">
+                <p class="text-sm font-medium text-neutral-900">{{ student_name|default:"" }}</p>
+                <p class="text-xs text-neutral-600">Student ID: {{ student_id|default:"" }}</p>
+              </div>
+              <div class="border-t border-neutral-200"></div>
+              <button id="signOutBtn" class="w-full text-left inline-flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50">
+                <span class="material-symbols-outlined text-base">logout</span>
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Student badge -->
+      <section class="bg-neutral-900 text-white">
+        <div class="max-w-6xl mx-auto px-6 py-3">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">badge</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold">Student</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_name|default:"" }}</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_id|default:"" }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content -->
+      <section class="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <!-- Summary -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">insights</span>
+            <h2 class="text-lg font-semibold text-neutral-900">Summary</h2>
+          </div>
+          <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Courses Enrolled</p>
+              <p id="sumCourses" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Total Exercises</p>
+              <p id="sumExercises" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Signed Up</p>
+              <p id="sumSigned" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Sessions Attended</p>
+              <p id="sumSessions" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+          </div>
+          <p id="avgScore" class="mt-3 text-sm text-neutral-700"></p>
+        </div>
+
+        <!-- Signed Up Exercises -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-neutral-900">event_available</span>
+              <h2 class="text-lg font-semibold text-neutral-900">Exercises You’ve Signed Up For</h2>
+            </div>
+            <span id="signedCount" class="text-sm text-neutral-600"></span>
+          </div>
+          <div id="signedList" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Not Signed Up -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-neutral-900">event_busy</span>
+              <h2 class="text-lg font-semibold text-neutral-900">Exercises You Haven’t Signed Up For</h2>
+            </div>
+            <span id="notSignedCount" class="text-sm text-neutral-600"></span>
+          </div>
+          <div id="notSignedList" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3"></div>
+        </div>
+
+        <!-- Evidence Requested -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-red-600">warning</span>
+              <h2 class="text-lg font-semibold text-neutral-900">Evidence Requested</h2>
+            </div>
+            <span id="evidenceCount" class="text-sm text-neutral-600"></span>
+          </div>
+          <div id="evidenceList" class="mt-4 space-y-3"></div>
+        </div>
+
+        <!-- Sessions Attended -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">history</span>
+            <h2 class="text-lg font-semibold text-neutral-900">Sessions You’ve Attended</h2>
+          </div>
+          <div id="sessionsList" class="mt-4 space-y-3"></div>
+        </div>
+
+        <!-- All Exercises (full details) -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">menu_book</span>
+            <h2 class="text-lg font-semibold text-neutral-900">All Exercises (Complete Details)</h2>
+          </div>
+          <div id="exercisesFullList" class="mt-4 space-y-4"></div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Choose Time Modal -->
+  <div id="timeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center z-50">
+    <div class="w-full max-w-lg rounded-lg bg-white shadow-xl border border-neutral-200">
+      <div class="px-5 py-3 border-b border-neutral-200 flex items-center justify-between">
+        <h3 class="text-neutral-900 font-semibold">Choose a time</h3>
+        <button id="closeTimeModal" class="material-symbols-outlined text-neutral-700 hover:text-black">close</button>
+      </div>
+      <div class="p-5">
+        <p id="timeModalExerciseTitle" class="text-sm text-neutral-700"></p>
+        <div id="timeModalList" class="mt-3 space-y-2"></div>
+        <div id="timeModalError" class="mt-3 text-sm text-red-600 hidden"></div>
+        <div class="mt-4 flex items-center gap-3">
+          <button id="confirmTimeBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors" disabled>
+            <span class="material-symbols-outlined text-base">check</span>
+            <span>Confirm selection</span>
+          </button>
+          <button id="cancelTimeBtn" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-4 py-2 hover:bg-neutral-50">
+            <span class="material-symbols-outlined text-base">close</span>
+            <span>Cancel</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    const FULL_URL = "{% url 'students_exercises_full' %}";
+    const GROUP_TIMES_URL = "{% url 'students_exercise_group_times' %}";
+    const SELECT_TIME_URL = "{% url 'students_select_group_time' %}";
+    const LOGOUT_URL = "{% url 'students_logout_api' %}";
+    const LOGIN_URL = "{% url 'students_login' %}";
+    const EVIDENCE_UPLOAD_URL = "{% url 'students_evidence_upload' %}";
+
+    const nameBtn = document.getElementById('studentNameBtn');
+    const profileMenu = document.getElementById('profileMenu');
+    nameBtn.addEventListener('click', () => profileMenu.classList.toggle('hidden'));
+    document.addEventListener('click', (e) => {
+      if (!profileMenu.contains(e.target) && !nameBtn.contains(e.target)) profileMenu.classList.add('hidden');
+    });
+
+    function clearSupabaseStorage() {
+      try {
+        const ls = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ls.push(k);
+        }
+        ls.forEach(k => localStorage.removeItem(k));
+        const ss = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ss.push(k);
+        }
+        ss.forEach(k => sessionStorage.removeItem(k));
+      } catch (_) {}
+    }
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      try { if (sb?.auth?.signOut) await sb.auth.signOut({ scope: 'global' }); } catch (_) {}
+      clearSupabaseStorage();
+      try {
+        const resp = await fetch(LOGOUT_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) return alert(json?.error || 'Sign out failed');
+        location.replace(LOGIN_URL);
+      } catch (e) {
+        alert('Network error during sign out');
+      }
+    });
+
+    // Elements
+    const sumCoursesEl = document.getElementById('sumCourses');
+    const sumExercisesEl = document.getElementById('sumExercises');
+    const sumSignedEl = document.getElementById('sumSigned');
+    const sumSessionsEl = document.getElementById('sumSessions');
+    const avgScoreEl = document.getElementById('avgScore');
+
+    const signedListEl = document.getElementById('signedList');
+    const signedCountEl = document.getElementById('signedCount');
+    const notSignedListEl = document.getElementById('notSignedList');
+    const notSignedCountEl = document.getElementById('notSignedCount');
+    const sessionsListEl = document.getElementById('sessionsList');
+    const exercisesFullListEl = document.getElementById('exercisesFullList');
+    const evidenceListEl = document.getElementById('evidenceList');
+    const evidenceCountEl = document.getElementById('evidenceCount');
+
+    // Modal
+    const timeModal = document.getElementById('timeModal');
+    const closeTimeModalBtn = document.getElementById('closeTimeModal');
+    const cancelTimeBtn = document.getElementById('cancelTimeBtn');
+    const confirmTimeBtn = document.getElementById('confirmTimeBtn');
+    const timeModalList = document.getElementById('timeModalList');
+    const timeModalExerciseTitle = document.getElementById('timeModalExerciseTitle');
+    const timeModalError = document.getElementById('timeModalError');
+    let modalExerciseId = null;
+    let selectedGroupTimeId = null;
+
+    closeTimeModalBtn.addEventListener('click', closeTimeModal);
+    cancelTimeBtn.addEventListener('click', closeTimeModal);
+
+    function renderEvidenceRequests(list) {
+      evidenceCountEl.textContent = `${list.length} pending`;
+      evidenceListEl.innerHTML = list.map(item => {
+        const requested = item.evidence_requested_at ? new Date(item.evidence_requested_at).toLocaleString() : '—';
+        return `
+          <div class="rounded-md border border-red-300 bg-red-50 p-4">
+            <div class="flex items-center justify-between">
+              <div>
+                <p class="text-sm text-neutral-700">${item.course.title}</p>
+                <p class="text-base font-semibold text-neutral-900">${item.exercise.title || 'Session'}</p>
+              </div>
+              <span class="text-xs text-neutral-600">Requested: ${requested}</span>
+            </div>
+            <div class="mt-2 grid grid-cols-2 gap-2 text-sm text-neutral-800">
+              <p><span class="text-neutral-600">Assistant:</span> ${item.assistant_name || '—'}</p>
+              <p><span class="text-neutral-600">Group:</span> ${item.group_index ?? '—'}</p>
+              <p><span class="text-neutral-600">Checked:</span> ${item.total_checked_count}</p>
+              <p><span class="text-neutral-600">Score:</span> ${item.score ?? '—'}</p>
+            </div>
+            <div class="mt-3 border-t border-red-200 pt-3">
+              <label class="text-sm font-medium text-neutral-900">Upload evidence (image)</label>
+              <div class="mt-2 flex items-center gap-3">
+                <input type="file" accept="image/*" data-submission="${item.id}" class="evidence-input block w-full text-sm" />
+                <button class="upload-btn inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors disabled:opacity-60"
+                  data-submission="${item.id}" disabled>
+                  <span class="material-symbols-outlined text-base">cloud_upload</span>
+                  <span>Submit</span>
+                </button>
+              </div>
+              <p class="upload-status mt-2 text-xs text-neutral-600" data-submission="${item.id}"></p>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Wire up inputs and upload actions
+      evidenceListEl.querySelectorAll('.evidence-input').forEach(inp => {
+        const sid = inp.getAttribute('data-submission');
+        const btn = evidenceListEl.querySelector(`.upload-btn[data-submission="${sid}"]`);
+        const statusEl = evidenceListEl.querySelector(`.upload-status[data-submission="${sid}"]`);
+        inp.addEventListener('change', () => {
+          btn.disabled = !inp.files?.[0];
+        });
+        btn.addEventListener('click', async () => {
+          if (!inp.files?.[0]) return;
+          btn.disabled = true;
+          statusEl.textContent = 'Uploading…';
+          try {
+            const fd = new FormData();
+            fd.append('submission_id', sid);
+            fd.append('evidence', inp.files[0]);
+            const resp = await fetch(EVIDENCE_UPLOAD_URL, { method: 'POST', body: fd });
+            const json = await resp.json();
+            if (!json?.ok) throw new Error(json?.error || 'Upload failed');
+            statusEl.textContent = 'Submitted. Thank you!';
+            // Refresh main lists to move this item to "received"
+            setTimeout(loadFull, 800);
+          } catch (e) {
+            statusEl.textContent = e?.message || 'Upload failed';
+            btn.disabled = false;
+          }
+        });
+      });
+    }
+
+    function openTimeModal(exerciseId, title) {
+      modalExerciseId = exerciseId;
+      selectedGroupTimeId = null;
+      timeModalExerciseTitle.textContent = `Exercise: ${title}`;
+      timeModalList.innerHTML = '<div class="text-sm text-neutral-600">Loading times…</div>';
+      confirmTimeBtn.disabled = true;
+      timeModalError.classList.add('hidden');
+      timeModal.classList.remove('hidden');
+      timeModal.classList.add('flex');
+
+      loadGroupTimes(exerciseId);
+    }
+
+    function closeTimeModal() {
+      modalExerciseId = null;
+      selectedGroupTimeId = null;
+      timeModal.classList.add('hidden');
+      timeModal.classList.remove('flex');
+    }
+
+    async function loadGroupTimes(exerciseId) {
+      try {
+        const resp = await fetch(GROUP_TIMES_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise_id: exerciseId }),
+        });
+        const json = await resp.json();
+        if (!json?.ok) throw new Error(json?.error || 'Failed to load group times');
+        const { group_times = [], selected_group_time_id } = json;
+
+        let html = '';
+        if (!group_times.length) {
+          html += '<div class="text-sm text-neutral-600">No available times.</div>';
+        } else {
+          html += '<div class="space-y-2">';
+          group_times.forEach(gt => {
+            const checked = (selected_group_time_id && gt.id === selected_group_time_id) ? 'checked' : '';
+            html += `
+              <label class="flex items-center gap-3 rounded-md border border-neutral-200 p-2 hover:bg-neutral-50">
+                <input type="radio" name="gt" value="${gt.id}" class="accent-neutral-900" ${checked} />
+                <div class="flex-1">
+                  <p class="text-sm font-medium text-neutral-900">${gt.name}</p>
+                  <p class="text-xs text-neutral-600">${new Date(gt.scheduled_at).toLocaleString()}</p>
+                </div>
+              </label>
+            `;
+          });
+          html += '</div>';
+        }
+        timeModalList.innerHTML = html;
+
+        // Wire selection
+        const radios = timeModalList.querySelectorAll('input[type="radio"][name="gt"]');
+        radios.forEach(r => r.addEventListener('change', () => {
+          selectedGroupTimeId = parseInt(r.value, 10);
+          confirmTimeBtn.disabled = !selectedGroupTimeId;
+        }));
+
+        confirmTimeBtn.onclick = async () => {
+          if (!modalExerciseId || !selectedGroupTimeId) return;
+          confirmTimeBtn.disabled = true;
+          timeModalError.classList.add('hidden');
+          try {
+            const resp2 = await fetch(SELECT_TIME_URL, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ exercise_id: modalExerciseId, group_time_id: selectedGroupTimeId }),
+            });
+            const json2 = await resp2.json();
+            if (!json2?.ok) throw new Error(json2?.error || 'Failed to select time');
+            closeTimeModal();
+            // Refresh page data
+            loadFull();
+          } catch (e) {
+            confirmTimeBtn.disabled = false;
+            timeModalError.textContent = e?.message || 'Unable to confirm selection';
+            timeModalError.classList.remove('hidden');
+          }
+        };
+      } catch (e) {
+        timeModalList.innerHTML = '<div class="text-sm text-red-600">Error loading times.</div>';
+      }
+    }
+
+    // Rendering helpers
+    function renderSigned(list) {
+      signedCountEl.textContent = `${list.length} total`;
+      signedListEl.innerHTML = list.map(item => `
+        <div class="rounded-md border border-neutral-200 p-4">
+          <p class="text-sm text-neutral-700">${item.course_title}</p>
+          <p class="mt-1 text-base font-semibold text-neutral-900">${item.exercise_title}</p>
+          <div class="mt-2 flex items-center gap-2">
+            <span class="material-symbols-outlined text-neutral-700">schedule</span>
+            <p class="text-sm text-neutral-800">Selected: ${item.group_time.name} — ${new Date(item.group_time.scheduled_at).toLocaleString()}</p>
+          </div>
+          <div class="mt-3">
+            <button class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+              onclick="openTimeModal(${item.exercise_id}, '${item.exercise_title.replace(/'/g, "\\'")}')">
+              <span class="material-symbols-outlined text-base">edit_calendar</span>
+              <span>Change time</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderNotSigned(list) {
+      notSignedCountEl.textContent = `${list.length} total`;
+      notSignedListEl.innerHTML = list.map(ex => `
+        <div class="rounded-md border border-neutral-200 p-4">
+          <p class="text-sm text-neutral-700">${ex.course.title}</p>
+          <p class="mt-1 text-base font-semibold text-neutral-900">${ex.title}</p>
+          <p class="mt-1 text-sm text-neutral-600">${ex.details ? ex.details : ''}</p>
+          <div class="mt-2 text-xs text-neutral-600">
+            <span>Start: ${ex.start_time ? new Date(ex.start_time).toLocaleString() : '—'}</span>
+            <span class="mx-2">•</span>
+            <span>Deadline: ${ex.deadline ? new Date(ex.deadline).toLocaleString() : '—'}</span>
+          </div>
+          <div class="mt-3">
+            <button class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors"
+              onclick="openTimeModal(${ex.id}, '${ex.title.replace(/'/g, "\\'")}')">
+              <span class="material-symbols-outlined text-base">add_alarm</span>
+              <span>Choose time</span>
+            </button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderSessions(list) {
+      sessionsListEl.innerHTML = list.map(s => `
+        <div class="rounded-md border border-neutral-200 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-neutral-700">${s.course.title}</p>
+              <p class="text-base font-semibold text-neutral-900">${s.exercise.title || 'Session'}</p>
+            </div>
+            <span class="text-xs text-neutral-600">${s.submitted_at ? new Date(s.submitted_at).toLocaleString() : '—'}</span>
+          </div>
+          <div class="mt-2 grid grid-cols-2 gap-2 text-sm text-neutral-800">
+            <p><span class="text-neutral-600">Assistant:</span> ${s.assistant_name || '—'}</p>
+            <p><span class="text-neutral-600">Group:</span> ${s.group_index ?? '—'}</p>
+            <p><span class="text-neutral-600">Checked:</span> ${s.total_checked_count}</p>
+            <p><span class="text-neutral-600">Score:</span> ${s.score ?? '—'}</p>
+          </div>
+          <div class="mt-2 text-xs text-neutral-600">
+            <span>Evidence requested: ${s.evidence_requested_at ? new Date(s.evidence_requested_at).toLocaleString() : '—'}</span>
+            <span class="mx-2">•</span>
+            <span>Evidence received: ${s.evidence_received_at ? new Date(s.evidence_received_at).toLocaleString() : '—'}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function renderExercisesFull(list) {
+      exercisesFullListEl.innerHTML = list.map(ex => `
+        <div class="rounded-md border border-neutral-200 p-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <p class="text-sm text-neutral-700">${ex.course.title}</p>
+              <p class="text-base font-semibold text-neutral-900">${ex.title}</p>
+            </div>
+            <div class="text-xs text-neutral-600">
+              <span>Total points: ${ex.total_points}</span>
+            </div>
+          </div>
+
+          ${ex.details ? `<p class="mt-2 text-sm text-neutral-800">${ex.details}</p>` : ''}
+
+          <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="rounded-md border border-neutral-200 p-3">
+              <p class="text-sm font-medium text-neutral-900">Timing</p>
+              <p class="mt-1 text-sm text-neutral-700">Start: ${ex.start_time ? new Date(ex.start_time).toLocaleString() : '—'}</p>
+              <p class="text-sm text-neutral-700">Deadline: ${ex.deadline ? new Date(ex.deadline).toLocaleString() : '—'}</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-3">
+              <p class="text-sm font-medium text-neutral-900">Group Times</p>
+              ${ex.group_times.length ? ex.group_times.map(gt => `
+                <p class="mt-1 text-sm text-neutral-700">• ${gt.name} — ${new Date(gt.scheduled_at).toLocaleString()}</p>
+              `).join('') : `<p class="mt-1 text-sm text-neutral-700">No group times</p>`}
+            </div>
+            <div class="rounded-md border border-neutral-200 p-3">
+              <p class="text-sm font-medium text-neutral-900">Your Sign-up</p>
+              <p class="mt-1 text-sm text-neutral-700">${ex.selected_group_time_id ? 'Selected group time ID: ' + ex.selected_group_time_id : 'Not selected'}</p>
+              <div class="mt-2">
+                <button class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+                  onclick="openTimeModal(${ex.id}, '${ex.title.replace(/'/g, "\\'")}')">
+                  <span class="material-symbols-outlined text-base">event</span>
+                  <span>${ex.selected_group_time_id ? 'Change time' : 'Choose time'}</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4">
+            <button class="inline-flex items-center gap-2 text-sm text-neutral-900 underline" onclick="toggleQuestions(this)">
+              <span class="material-symbols-outlined text-base">quiz</span>
+              <span>Show questions</span>
+            </button>
+            <div class="mt-2 hidden">
+              ${ex.questions.length ? ex.questions.map(q => `
+                <div class="rounded-md border border-neutral-200 p-3 mt-2">
+                  <p class="text-sm text-neutral-700">Q${q.order} — <span class="font-medium text-neutral-900">${q.points} pts</span></p>
+                  <p class="mt-1 text-sm text-neutral-800">${q.text}</p>
+                </div>
+              `).join('') : `<p class="text-sm text-neutral-700">No questions listed.</p>`}
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function toggleQuestions(btn) {
+      const container = btn.nextElementSibling;
+      if (!container) return;
+      const isHidden = container.classList.contains('hidden');
+      const label = btn.querySelector('span:last-child');
+      container.classList.toggle('hidden');
+      label.textContent = isHidden ? 'Hide questions' : 'Show questions';
+    }
+
+    async function loadFull() {
+      try {
+        const resp = await fetch(FULL_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) throw new Error(json?.error || 'Failed to load data');
+
+        const { stats, signed_up = [], not_signed_up = [], sessions_attended = [], exercises = [] } = json;
+
+        // Summary
+        sumCoursesEl.textContent = stats?.courses_count ?? '—';
+        sumExercisesEl.textContent = stats?.exercises_count ?? '—';
+        sumSignedEl.textContent = stats?.signed_up_count ?? '—';
+        sumSessionsEl.textContent = stats?.sessions_attended_count ?? '—';
+        if (stats?.avg_score != null) {
+          avgScoreEl.textContent = `Average Score: ${stats.avg_score.toFixed(2)}`;
+        } else {
+          avgScoreEl.textContent = '';
+        }
+
+        // Lists
+        renderSigned(signed_up);
+        renderNotSigned(not_signed_up);
+        const pendingEvidence = (sessions_attended || []).filter(s => s.evidence_requested_at && !s.evidence_received_at);
+        renderEvidenceRequests(pendingEvidence);
+        renderSessions(sessions_attended);
+        renderExercisesFull(exercises);
+      } catch (e) {
+        alert(e?.message || 'Unable to load your exercises');
+      }
+    }
+
+    // Kick off
+    loadFull();
+  </script>
+</body>
+</html>

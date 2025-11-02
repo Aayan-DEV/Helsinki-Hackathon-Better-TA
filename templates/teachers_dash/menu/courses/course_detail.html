@@ -1,0 +1,623 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Course Details</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' %}
+
+    <main class="flex-1" data-course-id="{% if course and course.id %}{{ course.id }}{% else %}0{% endif %}">
+      <header class="bg-white border-b border-neutral-200">
+            <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+                <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined">menu_book</span>
+                {% if course %}
+                    <h1 class="text-xl font-semibold text-neutral-900">Course: {{ course.title }}</h1>
+                {% else %}
+                    <h1 class="text-xl font-semibold text-neutral-900">Course not found</h1>
+                {% endif %}
+                </div>
+                <div class="flex items-center gap-2">
+                <a href="{% url 'teachers_courses' %}" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+                    <span class="material-symbols-outlined">arrow_back</span>
+                    <span>Back to Courses</span>
+                </a>
+                {% if course %}
+                <a href="{% url 'teachers_course_exercises' course.id %}" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 text-white px-4 py-2 hover:bg-indigo-700 transition-colors">
+                    <span class="material-symbols-outlined">assignment_add</span>
+                    <span>Add Exercise</span>
+                </a>
+                {% endif %}
+                </div>
+            </div>
+        </header>
+      {% if course %}
+      <section class="max-w-6xl mx-auto px-6 py-6">
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+            <span class="material-symbols-outlined">description</span>
+            <span>About this course</span>
+          </h2>
+          <p class="mt-2 text-sm text-neutral-700">{{ course.description }}</p>
+        </div>
+
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+          <!-- Left: Assigned TAs and create -->
+          <div class="md:col-span-2 rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <div class="flex items-center justify-between">
+              <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+                <span class="material-symbols-outlined">supervisor_account</span>
+                <span>Teaching Assistants (Assigned)</span>
+              </h2>
+            </div>
+
+            <div id="taList" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- TA list injected here -->
+            </div>
+
+            <div class="mt-6">
+              <h3 class="text-sm font-medium text-neutral-900">Add a Teaching Assistant</h3>
+              <form id="taForm" class="mt-2 grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div>
+                  <label class="text-sm text-neutral-700">Name</label>
+                  <input id="taName" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., Alex Taylor" required>
+                </div>
+                <div>
+                  <label class="text-sm text-neutral-700">Special Code</label>
+                  <input id="taCode" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., TA-ALX-2025" required>
+                </div>
+                <div class="flex items-end">
+                  <button id="taSaveBtn" class="w-full rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed">Save</button>
+                </div>
+              </form>
+              <p class="mt-2 text-xs text-neutral-600">New TA is added globally and assigned to this course.</p>
+
+              <div id="addedTaPrompt" class="mt-3 hidden rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                <div class="flex items-center justify-between">
+                  <p id="addedTaText" class="text-sm text-neutral-800"></p>
+                  <div class="flex items-center gap-2">
+                    <button id="addedTaPrefillBtn" class="rounded-md px-3 py-1.5 text-xs bg-neutral-900 text-white hover:bg-black">Prefill same TA</button>
+                    <button id="addedTaDismissBtn" class="rounded-md px-3 py-1.5 text-xs border border-neutral-300 text-neutral-700 hover:bg-neutral-100">Dismiss</button>
+                  </div>
+                </div>
+                <p class="mt-2 text-xs text-neutral-600">You can change the code before saving if needed.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Right: All TAs directory -->
+          <aside class="md:col-span-1 rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+              <span class="material-symbols-outlined">group_add</span>
+              <span>All Teaching Assistants</span>
+            </h2>
+            <p class="mt-1 text-xs text-neutral-600">Browse all TAs and click “+” to assign to this course.</p>
+            <div id="taAllPanel" class="mt-3 space-y-2">
+              <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">
+                Loading assistants…
+              </div>
+            </div>
+          </aside>
+        </div>
+
+        <div class="mt-6 rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <div class="flex items-center justify-between">
+                <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+                <span class="material-symbols-outlined">assignment</span>
+                <span>Exercises</span>
+                </h2>
+                {% if course %}
+                <a href="{% url 'teachers_course_exercises' course.id %}" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700">
+                <span class="material-symbols-outlined">add</span>
+                <span>Add Exercise</span>
+                </a>
+                {% endif %}
+            </div>
+            <div id="exercisesList" class="mt-4 space-y-3">
+                <div class="rounded-md border border-neutral-200 bg-white p-3 text-sm text-neutral-700">Loading exercises…</div>
+            </div>
+        </div>
+
+        <!-- Danger Zone: Delete course (detached block below assistants) -->
+        <div class="mt-6 rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+            <span class="material-symbols-outlined text-red-600">warning</span>
+            <span>Danger Zone</span>
+            </h2>
+            <p class="mt-2 text-sm text-neutral-700">
+            Deleting this course removes all its data and TA assignments. This action cannot be undone.
+            </p>
+            <div class="mt-4 flex items-center gap-3">
+            <button id="deleteCourseBtn" class="inline-flex items-center gap-2 rounded-md bg-red-600 text-white px-4 py-2 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed">
+                <span class="material-symbols-outlined">delete</span>
+                <span>Delete Course</span>
+            </button>
+            <span id="deleteCourseStatus" class="text-sm text-neutral-600 hidden">Deleting…</span>
+
+            <!-- Confirmation block (collapsed by default, no popup) -->
+            <div id="deleteConfirmBlock" class="mt-4 hidden">
+                <div class="rounded-md border border-red-200 bg-red-50 p-4">
+                <p class="text-sm text-neutral-900">
+                    To confirm deletion, type <span class="font-mono font-semibold">DELETE</span> and click “Confirm Delete”.
+                </p>
+                <div class="mt-3 flex items-center gap-3">
+                    <input id="deleteConfirmInput" type="text" class="w-48 rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="Type DELETE" />
+                    <button id="confirmDeleteBtn" class="inline-flex items-center gap-2 rounded-md bg-red-600 text-white px-4 py-2 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed" disabled>
+                    <span class="material-symbols-outlined">delete_forever</span>
+                    <span>Confirm Delete</span>
+                    </button>
+                    <a id="cancelDeleteBtn" href="#" class="text-sm text-neutral-700 hover:underline">Cancel</a>
+                </div>
+                <p class="mt-2 text-xs text-neutral-600">You can cancel anytime before confirming.</p>
+            </div>
+        </div>
+      </section>
+      {% endif %}
+    </main>
+  </div>
+
+  <!-- New: Group Times Modal -->
+<div id="groupTimeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4">
+  <div class="w-full max-w-md rounded-lg bg-white shadow-lg border border-neutral-200">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+      <h3 id="groupTimeTitle" class="text-base font-semibold text-neutral-900">Exercise Group Times</h3>
+      <button id="groupTimeClose" class="p-2 rounded hover:bg-neutral-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-4 space-y-3 text-sm text-neutral-800">
+      <div id="groupTimeList" class="space-y-2">
+        <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Loading group times…</div>
+      </div>
+      <div class="rounded-md border border-neutral-200 p-3 space-y-2">
+        <div class="text-neutral-900 font-medium">Add New Group Time</div>
+        <div class="grid grid-cols-1 gap-2">
+          <div>
+            <label class="text-xs text-neutral-700">Name</label>
+            <input id="groupTimeName" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" placeholder="e.g., Morning session" />
+          </div>
+          <div>
+            <label class="text-xs text-neutral-700">Scheduled at</label>
+            <input id="groupTimeScheduledAt" type="datetime-local" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" />
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="px-4 py-3 border-t border-neutral-200 flex justify-end gap-2">
+      <button id="groupTimeCancel" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+        <span class="material-symbols-outlined text-base">cancel</span>
+        <span>Cancel</span>
+      </button>
+      <button id="groupTimeSave" class="inline-flex items-center gap-1 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+        <span class="material-symbols-outlined text-base">save</span>
+        <span>Save</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+  <script>
+    const container = document.querySelector('main[data-course-id]');
+    const courseId = parseInt(container?.dataset?.courseId || '0', 10);
+
+    // Assigned TAs (left)
+    const taListEl = document.getElementById('taList');
+    const taForm = document.getElementById('taForm');
+    const taNameEl = document.getElementById('taName');
+    const taCodeEl = document.getElementById('taCode');
+    const taSaveBtn = document.getElementById('taSaveBtn');
+
+    // Added TA prompt
+    const addedTaPrompt = document.getElementById('addedTaPrompt');
+    const addedTaText = document.getElementById('addedTaText');
+    const addedTaPrefillBtn = document.getElementById('addedTaPrefillBtn');
+    const addedTaDismissBtn = document.getElementById('addedTaDismissBtn');
+
+    // All TAs directory (right)
+    const taAllPanel = document.getElementById('taAllPanel');
+
+    const TA_LIST_URL   = "{% url 'teachers_api_ta_list' %}";
+    const TA_CREATE_URL = "{% url 'teachers_api_ta_create' %}";
+    const TA_ALL_URL    = "{% url 'teachers_api_ta_all' %}";
+    const TA_ASSIGN_URL = "{% url 'teachers_api_ta_assign' %}";
+    const DELETE_COURSE_URL = "{% url 'teachers_api_delete_course' %}";
+
+    // Delete UI elements
+    const deleteCourseBtn    = document.getElementById('deleteCourseBtn');
+    const deleteCourseStatus = document.getElementById('deleteCourseStatus');
+    const deleteConfirmBlock = document.getElementById('deleteConfirmBlock');
+    const deleteConfirmInput = document.getElementById('deleteConfirmInput');
+    const confirmDeleteBtn   = document.getElementById('confirmDeleteBtn');
+    const cancelDeleteBtn    = document.getElementById('cancelDeleteBtn');
+
+    // Expand confirm block (no popup)
+    deleteCourseBtn?.addEventListener('click', () => {
+    deleteConfirmBlock.classList.remove('hidden');
+    deleteConfirmInput.focus();
+    });
+
+    // Exercises APIs
+    const EXERCISE_LIST_URL  = "{% url 'teachers_api_exercise_list' %}";
+    const EXERCISE_DELETE_URL = "{% url 'teachers_api_exercise_delete' %}";
+    const EXERCISE_GROUP_TIMES_LIST_URL  = "{% url 'teachers_api_exercise_group_time_list' %}";
+    const EXERCISE_GROUP_TIMES_CREATE_URL = "{% url 'teachers_api_exercise_group_time_create' %}";
+
+    let currentExerciseId = null;
+
+  function formatDt(iso) {
+    if (!iso) return '—';
+    try { return new Date(iso).toLocaleString(); } catch (_) { return iso; }
+  }
+
+  function openGroupTimeModal(ex) {
+    currentExerciseId = ex.id;
+    document.getElementById('groupTimeTitle').textContent = `Exercise Group Times — ${ex.title || ''}`;
+    const modal = document.getElementById('groupTimeModal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    loadGroupTimes(ex.id);
+  }
+
+  function closeGroupTimeModal() {
+    const modal = document.getElementById('groupTimeModal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+    currentExerciseId = null;
+  }
+
+  document.getElementById('groupTimeClose').onclick = closeGroupTimeModal;
+  document.getElementById('groupTimeCancel').onclick = closeGroupTimeModal;
+
+  async function loadGroupTimes(exId) {
+    const userId = localStorage.getItem('teacher_user_id');
+    const listEl = document.getElementById('groupTimeList');
+    listEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Loading group times…</div>';
+    try {
+      const res = await fetch(EXERCISE_GROUP_TIMES_LIST_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: courseId, exercise_id: exId })
+      });
+      const j = await res.json();
+      if (!j?.ok) throw new Error(j?.error || 'Failed to load group times');
+      const items = Array.isArray(j.group_times) ? j.group_times : [];
+      listEl.innerHTML = items.length ? items.map(gt => `
+        <div class="flex items-center justify-between rounded-md border border-neutral-200 p-3">
+          <div>
+            <div class="text-sm font-medium text-neutral-900">${gt.name}</div>
+            <div class="text-xs text-neutral-600">${formatDt(gt.scheduled_at)}</div>
+          </div>
+        </div>
+      `).join('') : '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No group times yet.</div>';
+    } catch (e) {
+      listEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Unable to load group times.</div>';
+    }
+  }
+
+  document.getElementById('groupTimeSave').onclick = async () => {
+    const nameEl = document.getElementById('groupTimeName');
+    const atEl = document.getElementById('groupTimeScheduledAt');
+    const name = (nameEl.value || '').trim();
+    const at = (atEl.value || '').trim();
+    const userId = localStorage.getItem('teacher_user_id');
+
+    if (!currentExerciseId || !courseId || !userId || !name || !at) {
+      window.showMessage?.('Please enter name and schedule time.', 'error', 6000);
+      return;
+    }
+    try {
+      const res = await fetch(EXERCISE_GROUP_TIMES_CREATE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: userId,
+          course_id: courseId,
+          exercise_id: currentExerciseId,
+          name,
+          scheduled_at: at,
+        })
+      });
+      const j = await res.json();
+      if (!j?.ok) throw new Error(j?.error || 'Failed to save group time');
+      nameEl.value = '';
+      atEl.value = '';
+      await loadGroupTimes(currentExerciseId);
+      window.showMessage?.('Group time added.', 'success', 6000);
+    } catch (e) {
+      window.showMessage?.(e?.message || 'Failed to save group time', 'error', 6000);
+    }
+  };
+
+    function exerciseRow(ex) {
+        const preview = (ex.details || '').trim();
+        const short = preview.length > 140 ? preview.slice(0, 140) + '…' : (preview || 'No description');
+    const href = "{% url 'teachers_course_exercises' course.id %}" + "?exercise_id=" + String(ex.id);
+    return `
+        <article class="rounded-md border border-neutral-200 bg-white p-3 flex items-center justify-between">
+          <div>
+            <p class="text-sm font-semibold text-neutral-900">${ex.title}</p>
+            <p class="mt-1 text-xs text-neutral-700">${short}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <a href="${href}" class="rounded-md bg-neutral-900 text-white px-3 py-1.5 text-xs hover:bg-black">Open</a>
+            <button data-group-times="${ex.id}" data-ex-title="${ex.title}" class="rounded-md bg-indigo-600 text-white px-3 py-1.5 text-xs hover:bg-indigo-700">Choose exercise group times</button>
+            <button data-delete="${ex.id}" class="rounded-md bg-red-600 text-white px-3 py-1.5 text-xs hover:bg-red-700">Delete</button>
+          </div>
+        </article>
+    `;
+        }
+
+        async function loadExercises() {
+        const userId = localStorage.getItem('teacher_user_id');
+        if (!courseId || !userId) return;
+        try {
+            const res = await fetch(EXERCISE_LIST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, course_id: courseId })
+            });
+            const j = await res.json();
+            if (!j?.ok) throw new Error(j?.error || 'Failed to load exercises');
+            const panel = document.getElementById('exercisesList');
+            const list = Array.isArray(j.exercises) ? j.exercises : [];
+            panel.innerHTML = list.length
+            ? list.map(exerciseRow).join('')
+            : `<div class="rounded-md border border-neutral-200 bg-white p-3"><p class="text-sm text-neutral-700">No exercises yet. Use “Add Exercise” above.</p></div>`;
+
+            // Bind group times modal
+            panel.querySelectorAll('[data-group-times]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const exId = parseInt(btn.getAttribute('data-group-times'), 10);
+                const exTitle = btn.getAttribute('data-ex-title') || '';
+                openGroupTimeModal({ id: exId, title: exTitle });
+            });
+            });
+        } catch (e) {
+            document.getElementById('exercisesList').innerHTML =
+            `<div class="rounded-md border border-neutral-200 bg-white p-3"><p class="text-sm text-neutral-700">Network error while loading exercises.</p></div>`;
+        }
+        }
+
+        async function deleteExercise(exerciseId, btnEl) {
+        const userId = localStorage.getItem('teacher_user_id');
+        if (!exerciseId || !courseId || !userId) return;
+        btnEl?.setAttribute('disabled', 'true');
+        try {
+            const res = await fetch(EXERCISE_DELETE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, course_id: courseId, exercise_id: exerciseId })
+            });
+            const j = await res.json();
+            if (!j?.ok) throw new Error(j?.error || 'Failed to delete exercise');
+            window.showMessage?.('Exercise deleted.', 'success', 6000);
+            await loadExercises();
+        } catch (e) {
+            window.showMessage?.(e?.message || 'Failed to delete exercise', 'error', 8000);
+        } finally {
+            btnEl?.removeAttribute('disabled');
+        }
+        }
+
+
+
+    // Enable confirm button only when input matches DELETE
+    deleteConfirmInput?.addEventListener('input', () => {
+    const val = (deleteConfirmInput.value || '').trim();
+    confirmDeleteBtn.disabled = (val !== 'DELETE');
+    });
+
+    // Cancel confirmation
+    cancelDeleteBtn?.addEventListener('click', (e) => {
+    e.preventDefault();
+    deleteConfirmInput.value = '';
+    confirmDeleteBtn.disabled = true;
+    deleteConfirmBlock.classList.add('hidden');
+    });
+
+    // Execute delete
+    confirmDeleteBtn?.addEventListener('click', async () => {
+    if (!courseId) return;
+    const userId = localStorage.getItem('teacher_user_id');
+
+    confirmDeleteBtn.disabled = true;
+    deleteCourseBtn.disabled = true;
+    deleteCourseStatus.classList.remove('hidden');
+
+    try {
+        const res = await fetch(DELETE_COURSE_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: userId, course_id: courseId })
+        });
+        const j = await res.json();
+        if (!j?.ok) {
+        throw new Error(j?.error || 'Failed to delete course');
+        }
+        window.showMessage?.('Course deleted.', 'success', 6000);
+        location.replace("{% url 'teachers_courses' %}");
+    } catch (e) {
+        window.showMessage?.(e?.message || 'Failed to delete course', 'error', 8000);
+        confirmDeleteBtn.disabled = false;
+    } finally {
+        deleteCourseBtn.disabled = false;
+        deleteCourseStatus.classList.add('hidden');
+    }
+    });
+
+    function taCard(ta) {
+      return `
+        <article class="rounded-lg bg-white border border-neutral-200 shadow-sm p-4">
+          <div class="flex items-start justify-between">
+            <div>
+              <h4 class="text-sm font-semibold text-neutral-900">${ta.name}</h4>
+              <p class="mt-1 text-xs text-neutral-700">Code: <span class="font-mono">${ta.special_code}</span></p>
+            </div>
+            <span class="material-symbols-outlined text-neutral-500">person_add</span>
+          </div>
+        </article>
+      `;
+    }
+
+    async function loadTAs() {
+      const userId = localStorage.getItem('teacher_user_id');
+      if (!courseId) return;
+      try {
+        const res = await fetch(TA_LIST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, course_id: courseId })
+        });
+        const j = await res.json();
+        if (j?.ok && Array.isArray(j.assistants)) {
+          taListEl.innerHTML = j.assistants.length
+            ? j.assistants.map(taCard).join('')
+            : `<div class="rounded-md border border-neutral-200 bg-white p-4"><p class="text-sm text-neutral-700">No assistants yet. Add the first assistant using the form above.</p></div>`;
+        } else {
+          taListEl.innerHTML = `<div class="rounded-md border border-neutral-200 bg-white p-4"><p class="text-sm text-neutral-700">Unable to load assistants.</p></div>`;
+        }
+      } catch (_) {
+        taListEl.innerHTML = `<div class="rounded-md border border-neutral-200 bg-white p-4"><p class="text-sm text-neutral-700">Network error while loading assistants.</p></div>`;
+      }
+    }
+
+    function showAddedTaPrompt(name, code) {
+      addedTaText.textContent = `Added “${name}” (${code}). Add the same TA again?`;
+      addedTaPrompt.classList.remove('hidden');
+
+      addedTaPrefillBtn.onclick = () => {
+        taNameEl.value = name;
+        taCodeEl.value = code;
+        taNameEl.focus();
+        window.showMessage?.('Prefilled the form with the same TA. You can change the code if needed.', 'info', 6000);
+      };
+      addedTaDismissBtn.onclick = () => {
+        addedTaPrompt.classList.add('hidden');
+      };
+    }
+
+    function taAllRow(ta) {
+      return `
+        <div class="flex items-center justify-between rounded-md border border-neutral-200 p-3">
+          <div>
+            <p class="text-sm font-medium text-neutral-900">${ta.name}</p>
+            <p class="text-xs text-neutral-600 font-mono">${ta.special_code}</p>
+          </div>
+          <button data-assign="${ta.id}" class="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs bg-neutral-900 text-white hover:bg-black">
+            <span class="material-symbols-outlined text-sm">add</span>
+            <span>Add</span>
+          </button>
+        </div>
+      `;
+    }
+
+    async function loadAllTAs() {
+      try {
+        const res = await fetch(TA_ALL_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({})
+        });
+        const j = await res.json();
+        if (j?.ok && Array.isArray(j.assistants) && j.assistants.length) {
+          taAllPanel.innerHTML = j.assistants.map(taAllRow).join('');
+          taAllPanel.querySelectorAll('[data-assign]').forEach(btn => {
+            btn.addEventListener('click', async () => {
+              const assistantId = parseInt(btn.getAttribute('data-assign'), 10);
+              await assignTA(assistantId, btn);
+            });
+          });
+        } else {
+          taAllPanel.innerHTML = `<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No assistants in the directory yet.</div>`;
+        }
+      } catch (_) {
+        taAllPanel.innerHTML = `<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Network error while loading directory.</div>`;
+      }
+    }
+
+    async function assignTA(assistantId, btnEl) {
+      const userId = localStorage.getItem('teacher_user_id');
+      if (!courseId || !assistantId) return;
+      btnEl?.setAttribute('disabled', 'true');
+      try {
+        const res = await fetch(TA_ASSIGN_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, course_id: courseId, assistant_id: assistantId })
+        });
+        const j = await res.json();
+        if (!j?.ok) {
+          throw new Error(j?.error || 'Failed to assign assistant');
+        }
+        window.showMessage?.('Assistant assigned.', 'success', 5000);
+        await loadTAs();
+      } catch (e) {
+        window.showMessage?.(e?.message || 'Failed to assign assistant', 'error', 8000);
+      } finally {
+        btnEl?.removeAttribute('disabled');
+      }
+    }
+
+    taForm?.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = taNameEl.value.trim();
+      const special_code = taCodeEl.value.trim();
+      const userId = localStorage.getItem('teacher_user_id');
+
+      if (!name || !special_code) {
+        window.showMessage?.('Please enter both name and special code.', 'error', 6000);
+        return;
+      }
+
+      taSaveBtn.disabled = true;
+      try {
+        const res = await fetch(TA_CREATE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, course_id: courseId, name, special_code })
+        });
+        const j = await res.json();
+        if (!j?.ok) {
+          throw new Error(j?.error || 'Failed to add assistant');
+        }
+        window.showMessage?.('Assistant added globally and assigned.', 'success', 6000);
+        taNameEl.value = '';
+        taCodeEl.value = '';
+        await loadTAs();
+        await loadAllTAs();
+
+        const added = j.assistant || { name, special_code };
+        showAddedTaPrompt(added.name, added.special_code);
+      } catch (e2) {
+        window.showMessage?.(e2?.message || 'Failed to add assistant', 'error', 8000);
+      } finally {
+        taSaveBtn.disabled = false;
+      }
+    });
+
+    loadExercises();
+    loadTAs();
+    loadAllTAs();
+  </script>
+</body>
+</html>

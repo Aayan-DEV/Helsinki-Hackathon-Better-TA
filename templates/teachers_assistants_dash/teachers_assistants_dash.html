@@ -1,18 +1,558 @@
 {% load static %}
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full">
 <head>
   <meta charset="utf-8">
-  <title>Teachers Assistants Dashboard</title>
+  <title>Teacher’s Assistant Dashboard</title>
   <link rel="stylesheet" href="{% static 'teachers_assistants_dash/teachers_assistants_dash.css' %}">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'] },
+      }},
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
 </head>
-<body>
-  <main>
-    <h1>Teachers Assistants Dashboard</h1>
-    <section id="content">
-      <p>Welcome to the assistants dashboard.</p>
-    </section>
-  </main>
-  <script src="{% static 'teachers_assistants_dash/teachers_assistants_dash.js' %}"></script>
+<body class="h-full bg-neutral-100 font-sans">
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='assistant' %}
+    <div class="flex-1 min-w-0">
+      <header class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">Teacher’s Assistant Dashboard</h1>
+        <div class="flex items-center gap-3">
+          <span id="assistantName" class="text-sm text-neutral-700">Loading…</span>
+          <button id="signOutBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors">
+            <span class="material-symbols-outlined text-base">logout</span>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      <main class="p-6 space-y-6">
+        <section class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-neutral-700">Courses Assigned</h2>
+              <span class="material-symbols-outlined text-neutral-500">menu_book</span>
+            </div>
+            <p id="coursesCount" class="mt-3 text-3xl font-semibold text-neutral-900">—</p>
+            <a href="{% url 'ta_courses_assigned' %}" class="mt-3 inline-flex items-center gap-1 text-sm text-neutral-900 underline">View courses</a>
+          </div>
+
+          <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-neutral-700">Total Students</h2>
+              <span class="material-symbols-outlined text-neutral-500">groups</span>
+            </div>
+            <p id="studentsTotal" class="mt-3 text-3xl font-semibold text-neutral-900">—</p>
+            <p class="mt-1 text-xs text-neutral-500">Sum of enrolled students in assigned courses.</p>
+          </div>
+
+          <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-neutral-700">Most Recent Exercise</h2>
+              <span class="material-symbols-outlined text-neutral-500">history</span>
+            </div>
+            <div id="recentExercise" class="mt-3 text-sm text-neutral-800">
+              <p class="text-neutral-500">No exercise found.</p>
+            </div>
+            <button id="openRecentBtn" class="mt-3 hidden inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+              <span class="material-symbols-outlined text-base">open_in_new</span>
+              <span>Open Task</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-neutral-700">Current Task</h2>
+              <span class="material-symbols-outlined text-neutral-500">schedule</span>
+            </div>
+            <div id="currentTask" class="mt-3 text-sm text-neutral-800">
+              <p class="text-neutral-500">No current task.</p>
+            </div>
+            <button id="openCurrentBtn" class="mt-3 hidden inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+              <span class="material-symbols-outlined text-base">open_in_new</span>
+              <span>Open Task</span>
+            </button>
+          </div>
+
+          <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+              <h2 class="text-sm font-medium text-neutral-700">Ending Soon</h2>
+              <span class="material-symbols-outlined text-neutral-500">hourglass_bottom</span>
+            </div>
+            <div id="endingSoonTask" class="mt-3 text-sm text-neutral-800">
+              <p class="text-neutral-500">No upcoming deadlines.</p>
+            </div>
+            <button id="openEndingBtn" class="mt-3 hidden inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+              <span class="material-symbols-outlined text-base">open_in_new</span>
+              <span>Open Task</span>
+            </button>
+          </div>
+        </section>
+
+        <section class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-medium text-neutral-700">You report to these Professors</h2>
+            <span class="material-symbols-outlined text-neutral-500">person</span>
+          </div>
+          <ul id="teachersList" class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-2"></ul>
+        </section>
+
+        <!-- New: Active Sessions -->
+        <section class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+          <div class="flex items-center justify-between">
+            <h2 class="text-sm font-medium text-neutral-700">Active Sessions</h2>
+            <span class="material-symbols-outlined text-neutral-500">timer</span>
+          </div>
+          <div id="sessionsList" class="mt-3 space-y-2">
+            <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No active sessions.</div>
+          </div>
+        </section>
+      </main>
+
+      <!-- Task Details Modal -->
+      <div id="taskModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4">
+        <div class="w-full max-w-2xl rounded-lg bg-white shadow-lg border border-neutral-200">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+            <h3 id="taskModalTitle" class="text-base font-semibold text-neutral-900">Task Details</h3>
+            <button id="closeTaskModal" class="p-2 rounded hover:bg-neutral-100">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div class="p-4 space-y-2 text-sm text-neutral-800" id="taskModalBody"></div>
+          <div class="px-4 py-3 border-t border-neutral-200 flex justify-end">
+            <a id="manageTaskLink" href="{% url 'ta_exercise_management' %}" class="inline-flex items-center gap-1 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+              <span class="material-symbols-outlined text-base">edit</span>
+              <span>Go to Exercise Management</span>
+            </a>
+          </div>
+        </div>
+      </div>
+      <!-- End Session Modal -->
+        <div id="endSessionModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+        <div class="w-full max-w-md rounded-lg bg-white shadow-lg border border-neutral-200">
+            <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+            <h3 class="text-base font-semibold text-neutral-900">End & Delete Session</h3>
+            <button id="endSessionClose" class="p-2 rounded hover:bg-neutral-100">
+                <span class="material-symbols-outlined">close</span>
+            </button>
+            </div>
+            <div class="p-4 space-y-2 text-sm text-neutral-800">
+            <div id="endSessionInfo" class="text-neutral-700">Are you sure you want to end and delete this session?</div>
+            <div class="text-xs text-neutral-600">This will close the session, delete it, and mark the related exercise as completed.</div>
+            </div>
+            <div class="px-4 py-3 border-t border-neutral-200 flex justify-end gap-2">
+            <button id="endSessionCancel" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                <span class="material-symbols-outlined text-base">cancel</span>
+                <span>Cancel</span>
+            </button>
+            <button id="endSessionConfirm" class="inline-flex items-center gap-1 rounded-md bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700">
+                <span class="material-symbols-outlined text-base">stop_circle</span>
+                <span>End & Delete</span>
+            </button>
+            </div>
+        </div>
+        </div>
+    </div>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    const assistantNameEl = document.getElementById('assistantName');
+    const coursesCountEl = document.getElementById('coursesCount');
+    const studentsTotalEl = document.getElementById('studentsTotal');
+    const teachersListEl = document.getElementById('teachersList');
+    const sessionsListEl = document.getElementById('sessionsList');
+
+    const recentExerciseEl = document.getElementById('recentExercise');
+    const currentTaskEl = document.getElementById('currentTask');
+    const endingSoonTaskEl = document.getElementById('endingSoonTask');
+    const openRecentBtn = document.getElementById('openRecentBtn');
+    const openCurrentBtn = document.getElementById('openCurrentBtn');
+    const openEndingBtn = document.getElementById('openEndingBtn');
+
+    const taskModal = document.getElementById('taskModal');
+    const closeTaskModal = document.getElementById('closeTaskModal');
+    const taskModalTitle = document.getElementById('taskModalTitle');
+    const taskModalBody = document.getElementById('taskModalBody');
+
+    let assistantContext = { assistant_id: null, assistant_code: null, supabase_user_id: null, email: null };
+    const API_ASSISTANT_LOOKUP = '/dashboard/assistants/api/assistant/lookup/';
+    const API_SESSION_LIST = '/dashboard/assistants/api/session/list/';
+    const API_SESSION_END_DELETE = '/dashboard/assistants/api/session/end-delete/';
+
+    let pendingEnd = { slug: null, title: '' };
+  const endSessionModal = document.getElementById('endSessionModal');
+  const endSessionInfo = document.getElementById('endSessionInfo');
+  const endSessionClose = document.getElementById('endSessionClose');
+  const endSessionCancel = document.getElementById('endSessionCancel');
+  const endSessionConfirm = document.getElementById('endSessionConfirm');
+
+  function openEndSessionModal(slug, title) {
+    pendingEnd.slug = slug;
+    pendingEnd.title = title || '';
+    endSessionInfo.innerHTML = `
+      <div class="text-neutral-800"><span class="font-medium">Session:</span> ${title || '(untitled)'}</div>
+      <div class="text-neutral-600"><span class="font-medium">Slug:</span> ${slug}</div>
+      <div class="mt-2">Are you sure you want to end and delete this session?</div>
+    `;
+    endSessionModal.classList.remove('hidden');
+    endSessionModal.classList.add('flex');
+  }
+  function closeEndSessionModal() {
+    endSessionModal.classList.add('hidden');
+    endSessionModal.classList.remove('flex');
+    pendingEnd.slug = null; pendingEnd.title = '';
+  }
+  endSessionClose.onclick = closeEndSessionModal;
+  endSessionCancel.onclick = closeEndSessionModal;
+  endSessionConfirm.onclick = async () => {
+    if (!pendingEnd.slug) return;
+    try {
+      const res = await fetch(API_SESSION_END_DELETE, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_id: assistantContext.assistant_id || 0,
+          assistant_code: assistantContext.assistant_code || '',
+          supabase_user_id: assistantContext.supabase_user_id || '',
+          email: assistantContext.email || '',
+          slug: pendingEnd.slug,
+        })
+      });
+      const js = await res.json();
+      if (!js?.ok) return alert(js?.error || 'Failed to end session');
+      closeEndSessionModal();
+      await loadSessions();
+      await loadDashboard();
+    } catch (e) {
+      alert('Failed to end session');
+    }
+  };
+
+    function renderSessions(items) {
+      sessionsListEl.innerHTML = '';
+      if (!Array.isArray(items) || items.length === 0) {
+        sessionsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No active sessions.</div>';
+        return;
+      }
+      items.forEach(s => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        const left = document.createElement('div');
+        left.className = 'text-sm';
+        left.innerHTML = `
+          <div class="font-medium text-neutral-900">${s.title}</div>
+          <div class="text-neutral-700">Course: ${s.course_title || ''}${s.exercise_title ? ' • Exercise: ' + s.exercise_title : ''}</div>
+          <div class="text-neutral-600">Started: ${formatDt(s.started_at)}${s.time_limit_minutes ? ' • Limit: ' + s.time_limit_minutes + 'm' : ''}</div>
+        `;
+        const right = document.createElement('div');
+        right.className = 'flex items-center gap-2';
+        const openBtn = document.createElement('a');
+        openBtn.href = s.public_url;
+        openBtn.target = '_blank';
+        openBtn.className = 'inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50';
+        openBtn.innerHTML = '<span class="material-symbols-outlined text-base">open_in_new</span><span>Open</span>';
+        const endBtn = document.createElement('button');
+        endBtn.className = 'inline-flex items-center gap-1 rounded-md bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700';
+        endBtn.innerHTML = '<span class="material-symbols-outlined text-base">stop_circle</span><span>End & Delete</span>';
+        endBtn.onclick = () => openEndSessionModal(s.slug, s.title);
+
+        const manageBtn = document.createElement('a');
+        manageBtn.href = "{% url 'ta_exercise_management' %}" + `?session=${encodeURIComponent(s.slug)}`;
+        manageBtn.className = 'inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700';
+        manageBtn.innerHTML = '<span class="material-symbols-outlined text-base">edit</span><span>Manage</span>';
+
+        right.appendChild(manageBtn);
+        right.appendChild(openBtn);
+        right.appendChild(endBtn);
+        endBtn.onclick = async () => {
+          if (!confirm('End and delete this session? This cannot be undone.')) return;
+          try {
+            const res = await fetch(API_SESSION_END_DELETE, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                assistant_id: assistantContext.assistant_id || 0,
+                assistant_code: assistantContext.assistant_code || '',
+                supabase_user_id: assistantContext.supabase_user_id || '',
+                email: assistantContext.email || '',
+                slug: s.slug,
+              })
+            });
+            const js = await res.json();
+            if (!js?.ok) return alert(js?.error || 'Failed to end session');
+            // Refresh sessions and counts/tasks
+            await loadSessions();
+            await loadDashboard(); // refresh task cards after marking exercise done
+          } catch (e) {
+            alert('Failed to end session');
+          }
+        };
+        right.appendChild(openBtn);
+        right.appendChild(endBtn);
+        row.appendChild(left);
+        row.appendChild(right);
+        sessionsListEl.appendChild(row);
+      });
+    }
+
+    async function loadSessions() {
+      const res = await fetch(API_SESSION_LIST, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_id: assistantContext.assistant_id || 0,
+          assistant_code: assistantContext.assistant_code || '',
+          supabase_user_id: assistantContext.supabase_user_id || '',
+          email: assistantContext.email || '',
+        })
+      });
+      const js = await res.json();
+      if (!js?.ok) {
+        sessionsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No active sessions.</div>';
+        return;
+      }
+      renderSessions(js.sessions || []);
+    }
+
+    function formatDt(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch { return iso; }
+    }
+
+    function setAssistantName(label, email) {
+      assistantNameEl.textContent = label || email || 'Unknown Assistant';
+    }
+
+    function renderTeacherList(teachers) {
+      teachersListEl.innerHTML = '';
+      if (!teachers || !teachers.length) {
+        teachersListEl.innerHTML = '<li class="text-neutral-500 text-sm">No assigned Professors yet.</li>';
+        return;
+      }
+      teachers.forEach(t => {
+        const li = document.createElement('li');
+        li.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        li.innerHTML = `
+          <div>
+            <div class="text-sm font-medium text-neutral-900">${t.title || ''} ${t.first_name || ''} ${t.last_name || ''}</div>
+            <div class="text-xs text-neutral-600">${t.email || ''}</div>
+          </div>
+          <a href="{% url 'ta_courses_assigned' %}" class="text-xs text-neutral-900 underline">View courses</a>
+        `;
+        teachersListEl.appendChild(li);
+      });
+    }
+
+    function renderTask(el, btn, data) {
+      el.innerHTML = '';
+      btn.classList.add('hidden');
+      if (!data) {
+        el.innerHTML = '<p class="text-neutral-500">None.</p>';
+        return;
+      }
+      el.innerHTML = `
+        <div class="text-sm">
+          <div class="font-medium text-neutral-900">${data.title}</div>
+          <div class="text-neutral-700">Course: ${data.course_title}</div>
+          <div class="text-neutral-600">Start: ${formatDt(data.start_time)}${data.deadline ? ' • Due: ' + formatDt(data.deadline) : ''}</div>
+        </div>
+      `;
+      btn.classList.remove('hidden');
+      btn.onclick = () => openTaskDetails(data);
+    }
+
+    async function openTaskDetails(task) {
+      try {
+        const payload = {
+          exercise_id: task.id,
+          course_id: task.course_id,
+          assistant_id: assistantContext.assistant_id || 0,
+          assistant_code: assistantContext.assistant_code || '',
+        };
+        const res = await fetch('/teachers/api/courses/exercises/get/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const json = await res.json();
+        if (!json?.ok) throw new Error(json?.error || 'Unable to load task.');
+
+        taskModalTitle.textContent = json.exercise?.title || 'Task Details';
+        taskModalBody.innerHTML = `
+          <div><span class="font-medium">Course:</span> ${task.course_title}</div>
+          <div><span class="font-medium">Start:</span> ${formatDt(json.exercise?.start_time)}</div>
+          <div><span class="font-medium">Deadline:</span> ${formatDt(json.exercise?.deadline)}</div>
+          <div class="mt-2"><span class="font-medium">Details:</span></div>
+          <div class="text-neutral-700 whitespace-pre-line">${json.exercise?.details || '—'}</div>
+          <div class="mt-2"><span class="font-medium">Questions:</span> ${Array.isArray(json.questions) ? json.questions.length : 0}</div>
+        `;
+        taskModal.classList.remove('hidden');
+        taskModal.classList.add('flex');
+      } catch (e) {
+        alert(e.message || 'Unable to open task.');
+      }
+    }
+
+    closeTaskModal.onclick = () => {
+      taskModal.classList.add('hidden');
+      taskModal.classList.remove('flex');
+    };
+
+    async function loadDashboard() {
+      // Identify assistant from localStorage or session
+      assistantContext.supabase_user_id = localStorage.getItem('ta_user_id') || null;
+      assistantContext.email = localStorage.getItem('ta_email') || null;
+      assistantContext.assistant_code = localStorage.getItem('assistantCode') || null;
+
+    // Step 1: Auto-lookup assistant by supabase_user_id/email if code missing
+    if (!assistantContext.assistant_code || !assistantContext.assistant_id) {
+      try {
+        const lookupRes = await fetch(API_ASSISTANT_LOOKUP, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            supabase_user_id: assistantContext.supabase_user_id,
+            email: assistantContext.email,
+          })
+        });
+        const lookupJson = await lookupRes.json();
+        if (lookupJson?.ok) {
+          assistantContext.assistant_id = lookupJson.assistant?.id || null;
+          assistantContext.assistant_code = lookupJson.assistant?.special_code || null;
+          if (assistantContext.assistant_code) {
+            try { localStorage.setItem('assistantCode', assistantContext.assistant_code); } catch (_) {}
+          }
+          setAssistantName(lookupJson.assistant?.label, lookupJson.assistant?.email);
+        }
+      } catch (_) {}
+    }
+
+    // Step 2: Load dashboard counts (primary)
+    let countsJson = null;
+    try {
+      const res = await fetch('/dashboard/assistants/api/dashboard/counts/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_id: assistantContext.assistant_id || 0,
+          assistant_code: assistantContext.assistant_code || '',
+          supabase_user_id: assistantContext.supabase_user_id || '',
+          email: assistantContext.email || '',
+        })
+      });
+      if (res.ok) {
+        countsJson = await res.json();
+      }
+    } catch (_) {}
+
+    // Step 3: Fallback to courses-assigned if counts not available
+    if (!countsJson?.ok) {
+      try {
+        const res = await fetch('/dashboard/assistants/api/courses-assigned/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assistant_id: assistantContext.assistant_id || 0,
+            assistant_code: assistantContext.assistant_code || '',
+            supabase_user_id: assistantContext.supabase_user_id || '',
+            email: assistantContext.email || '',
+          })
+        });
+        const json = await res.json();
+        if (json?.ok) {
+          const courses = json.courses || [];
+          const courses_count = courses.length;
+          const students_total = courses.reduce((acc, c) => acc + (c.enrolled_count || 0), 0);
+          const teachers_map = {};
+          courses.forEach(c => {
+            const t = c.teacher;
+            if (t && !teachers_map[t.id]) {
+              teachers_map[t.id] = t;
+            }
+          });
+
+          setAssistantName(assistantContext.assistant_code ? `Assistant ${assistantContext.assistant_code}` : null, assistantContext.email);
+          coursesCountEl.textContent = courses_count ?? '—';
+          studentsTotalEl.textContent = students_total ?? '—';
+          renderTeacherList(Object.values(teachers_map));
+
+          // No tasks without counts; render minimal state
+          renderTask(recentExerciseEl, openRecentBtn, null);
+          renderTask(currentTaskEl, openCurrentBtn, null);
+          renderTask(endingSoonTaskEl, openEndingBtn, null);
+          return;
+        }
+      } catch (_) {}
+      setAssistantName(null, assistantContext.email);
+      return;
+    }
+
+    // Step 4: Render counts result
+    assistantContext.assistant_id = countsJson.assistant?.id || assistantContext.assistant_id || null;
+    assistantContext.assistant_code = countsJson.assistant?.special_code || assistantContext.assistant_code || null;
+    if (assistantContext.assistant_code) {
+      try { localStorage.setItem('assistantCode', assistantContext.assistant_code); } catch (_) {}
+    }
+
+    setAssistantName(countsJson.assistant?.label, countsJson.assistant?.email);
+    coursesCountEl.textContent = countsJson.courses_count ?? '—';
+    studentsTotalEl.textContent = countsJson.students_total ?? '—';
+    renderTeacherList(countsJson.teachers || []);
+
+    renderTask(recentExerciseEl, openRecentBtn, countsJson.most_recent_exercise || null);
+    renderTask(currentTaskEl, openCurrentBtn, countsJson.current_task || null);
+    renderTask(endingSoonTaskEl, openEndingBtn, countsJson.ending_soon_task || null);
+  }
+
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+        try {
+        localStorage.removeItem('ta_logged_in');
+        localStorage.removeItem('ta_user_id');
+        localStorage.removeItem('ta_email');
+        localStorage.removeItem('assistantCode');
+        } catch (_) {}
+
+        // Clear Supabase storage keys as a fallback
+        try {
+        const lsKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const k = localStorage.key(i);
+            if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) lsKeys.push(k);
+        }
+        lsKeys.forEach(k => localStorage.removeItem(k));
+
+        const ssKeys = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i);
+            if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ssKeys.push(k);
+        }
+        ssKeys.forEach(k => sessionStorage.removeItem(k));
+        } catch (_) {}
+
+        try { if (sb?.auth?.signOut) await sb.auth.signOut({ scope: 'global' }); } catch (_) {}
+        window.location.href = '{% url "teachers_assistants_login" %}';
+    });
+
+    loadDashboard().then(loadSessions).catch(() => {
+      setAssistantName(null, assistantContext.email);
+    });
+  </script>
 </body>
 </html>

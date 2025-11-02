@@ -1,0 +1,294 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Extras</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='student' %}
+
+    <main class="flex-1">
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">star</span>
+            <h1 class="text-xl font-semibold text-neutral-900">Student Extras</h1>
+          </div>
+        </div>
+      </header>
+
+      <section class="max-w-6xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left: Job Offers (spans 2 cols) -->
+          <div class="lg:col-span-2 space-y-6">
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">work</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Job Offers</h2>
+              </div>
+              <p class="mt-2 text-sm text-neutral-700">Curated opportunities from friendly companies open to students and recent grads.</p>
+
+              <div class="mt-4 space-y-4" id="jobOffers">
+                <!-- Offer 1 -->
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-4">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <p class="text-base font-semibold text-neutral-900">Tech Intern — Acme Corp</p>
+                      <p class="text-xs text-neutral-600">Remote • Part‑time • Paid</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 border border-green-200">Open</span>
+                      <button class="toggle-details inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50" data-id="job-1">
+                        <span class="material-symbols-outlined text-xs">unfold_more</span>
+                        <span>Details</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="mt-3 text-sm text-neutral-800">Join a small platform team building student tools.</div>
+                  <div id="job-1" class="details mt-3 overflow-hidden max-h-0 opacity-0 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">Responsibilities</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>Ship small features in React/Python</li>
+                          <li>Write unit tests and docs</li>
+                          <li>Collaborate in standups with mentors</li>
+                        </ul>
+                      </div>
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">Requirements</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>Enrolled student or recent graduate</li>
+                          <li>Basic Git and CLI familiarity</li>
+                          <li>Curiosity and willingness to learn</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3">
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+                        <span class="material-symbols-outlined text-sm">send</span>
+                        <span>Apply</span>
+                      </a>
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                        <span class="material-symbols-outlined text-sm">language</span>
+                        <span>Company Site</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Offer 2 -->
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-4">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <p class="text-base font-semibold text-neutral-900">Junior Developer — Byte Labs</p>
+                      <p class="text-xs text-neutral-600">Hybrid • Full‑time • Growth path</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 border border-green-200">Open</span>
+                      <button class="toggle-details inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50" data-id="job-2">
+                        <span class="material-symbols-outlined text-xs">unfold_more</span>
+                        <span>Details</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="mt-3 text-sm text-neutral-800">Learn CI/CD, testing, and teamwork while shipping user features.</div>
+                  <div id="job-2" class="details mt-3 overflow-hidden max-h-0 opacity-0 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">Stack</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>Python/Django, JS/React</li>
+                          <li>PostgreSQL, Redis</li>
+                          <li>Docker, GitHub Actions</li>
+                        </ul>
+                      </div>
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">Perks</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>Mentorship program</li>
+                          <li>Learning stipend</li>
+                          <li>Flexible hours</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3">
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+                        <span class="material-symbols-outlined text-sm">send</span>
+                        <span>Apply</span>
+                      </a>
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                        <span class="material-symbols-outlined text-sm">language</span>
+                        <span>Company Site</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- Offer 3 -->
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-4">
+                  <div class="flex items-start justify-between">
+                    <div>
+                      <p class="text-base font-semibold text-neutral-900">Data Analyst Intern — Insightive</p>
+                      <p class="text-xs text-neutral-600">On‑site • Part‑time • Training provided</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="inline-flex items-center rounded-full bg-green-100 text-green-700 text-xs font-medium px-2 py-0.5 border border-green-200">Open</span>
+                      <button class="toggle-details inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50" data-id="job-3">
+                        <span class="material-symbols-outlined text-xs">unfold_more</span>
+                        <span>Details</span>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="mt-3 text-sm text-neutral-800">Help teams make sense of product data and KPIs.</div>
+                  <div id="job-3" class="details mt-3 overflow-hidden max-h-0 opacity-0 transition-all duration-300">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">Toolkit</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>SQL, spreadsheets</li>
+                          <li>Python (pandas) optional</li>
+                          <li>Data viz tools</li>
+                        </ul>
+                      </div>
+                      <div class="rounded border border-neutral-200 bg-white p-3">
+                        <p class="text-sm font-medium text-neutral-900">What you’ll learn</p>
+                        <ul class="mt-2 text-sm text-neutral-700 list-disc ml-4">
+                          <li>Data cleaning and reporting</li>
+                          <li>Stakeholder communication</li>
+                          <li>Creating dashboards</li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="mt-3 flex items-center gap-3">
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+                        <span class="material-symbols-outlined text-sm">send</span>
+                        <span>Apply</span>
+                      </a>
+                      <a href="#" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                        <span class="material-symbols-outlined text-sm">language</span>
+                        <span>Company Site</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- How to use -->
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">info</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Tips for applying</h2>
+              </div>
+              <ul class="mt-3 text-sm text-neutral-700 list-disc ml-4">
+                <li>Tailor your CV to the role; highlight projects and coursework.</li>
+                <li>Link to a portfolio or GitHub/GitLab with clean README files.</li>
+                <li>Keep your cover letter short, specific, and friendly.</li>
+              </ul>
+            </div>
+          </div>
+
+          <!-- Right: Student Card Benefits -->
+          <div class="space-y-6">
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">credit_card</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Student Card Benefits</h2>
+              </div>
+              <div class="mt-3 space-y-3 text-sm text-neutral-800">
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p class="font-medium text-neutral-900">Low‑cost meals</p>
+                  <p class="mt-1 text-neutral-700">Discounted meals at partner cafeterias and restaurants near campus.</p>
+                  <p class="mt-1 text-xs text-neutral-600">Show your student card at checkout.</p>
+                </div>
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p class="font-medium text-neutral-900">Public transport discounts</p>
+                  <p class="mt-1 text-neutral-700">Reduced fares for buses, metro, and trains in most regions.</p>
+                  <p class="mt-1 text-xs text-neutral-600">Apply the student fare in your transit app or kiosk.</p>
+                </div>
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p class="font-medium text-neutral-900">Museums & culture passes</p>
+                  <p class="mt-1 text-neutral-700">Free or reduced entry to galleries, exhibitions, and cultural events.</p>
+                  <p class="mt-1 text-xs text-neutral-600">Look for student pricing or partnerships.</p>
+                </div>
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p class="font-medium text-neutral-900">Health & fitness</p>
+                  <p class="mt-1 text-neutral-700">Gym membership discounts and wellness workshops.</p>
+                  <p class="mt-1 text-xs text-neutral-600">Ask for student rate at partner gyms.</p>
+                </div>
+                <div class="rounded-md border border-neutral-200 bg-neutral-50 p-3">
+                  <p class="font-medium text-neutral-900">Banking perks</p>
+                  <p class="mt-1 text-neutral-700">No‑fee accounts, budgeting tools, and financial literacy events.</p>
+                  <p class="mt-1 text-xs text-neutral-600">Availability varies by bank; bring your card.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">verified</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Eligibility</h2>
+              </div>
+              <ul class="mt-3 text-sm text-neutral-700 list-disc ml-4">
+                <li>Active enrollment at a recognized institution</li>
+                <li>Valid student card or digital ID</li>
+                <li>Local residency requirements may apply for transport discounts</li>
+              </ul>
+            </div>
+
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">assignment_turned_in</span>
+                <h2 class="text-lg font-semibold text-neutral-900">How to get your student card</h2>
+              </div>
+              <ol class="mt-3 text-sm text-neutral-700 list-decimal ml-4">
+                <li>Check your registrar portal for card issuance info.</li>
+                <li>Bring government ID and proof of enrollment.</li>
+                <li>Ask about digital wallet support for easier access.</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    // Toggle job details sliders
+    document.querySelectorAll('.toggle-details').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const panel = document.getElementById(id);
+        if (!panel) return;
+        const icon = btn.querySelector('.material-symbols-outlined');
+        const collapsed = panel.classList.contains('max-h-0');
+        panel.classList.toggle('max-h-0', !collapsed);
+        panel.classList.toggle('opacity-0', !collapsed);
+        panel.classList.toggle('max-h-96', collapsed);
+        panel.classList.toggle('opacity-100', collapsed);
+        if (icon) icon.textContent = collapsed ? 'unfold_less' : 'unfold_more';
+      });
+    });
+  </script>
+</body>
+</html>

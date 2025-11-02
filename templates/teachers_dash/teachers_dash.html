@@ -1,0 +1,231 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Teachers Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' %}
+
+    <main class="flex-1">
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">school</span>
+            <h1 class="text-xl font-semibold text-neutral-900">Teachers Dashboard</h1>
+            </div>
+            <div class="relative">
+            <button id="teacherNameBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+                <span class="material-symbols-outlined">account_circle</span>
+                <span id="teacherDisplayName">Account</span>
+                <span class="material-symbols-outlined text-sm">expand_more</span>
+            </button>
+            <div id="profileMenu" class="absolute right-0 mt-2 w-48 rounded-md bg-white border border-neutral-200 shadow-lg p-2 hidden">
+                <button id="signOutBtn" class="w-full inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-900 hover:bg-neutral-100">
+                <span class="material-symbols-outlined">logout</span>
+                <span>Sign out</span>
+                </button>
+            </div>
+            </div>
+        </div>
+      </header>
+
+      <section id="roleBanner" class="bg-neutral-900 text-white">
+        <div class="max-w-6xl mx-auto px-6 py-3">
+            <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">badge</span>
+            <div class="flex flex-wrap items-center gap-2">
+                <span id="roleTitle" class="font-semibold">Teacher</span>
+                <span class="opacity-70">•</span>
+                <span id="roleCodeLabel" class="font-medium">—</span>
+                <span class="opacity-70">•</span>
+                <span id="roleCodeCourse" class="font-medium">—</span>
+            </div>
+            </div>
+        </div>
+        </section>
+
+      <section class="max-w-6xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Existing: Courses Created -->
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">library_books</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Courses Created</h2>
+            </div>
+            <p id="coursesCount" class="mt-4 text-4xl font-bold text-neutral-900">0</p>
+            <p class="mt-1 text-sm text-neutral-600">Total courses you’ve created.</p>
+            </div>
+
+            <!-- Existing: Students Enrolled -->
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">group</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Students Enrolled</h2>
+            </div>
+            <p id="studentsCount" class="mt-4 text-4xl font-bold text-neutral-900">0</p>
+            <p class="mt-1 text-sm text-neutral-600">Across all your courses.</p>
+            </div>
+
+            <!-- New: Teaching Assistants -->
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <div class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-neutral-900">supervisor_account</span>
+                <h2 class="text-lg font-semibold text-neutral-900">Teaching Assistants</h2>
+            </div>
+            <p id="taCountUnique" class="mt-4 text-4xl font-bold text-neutral-900">0</p>
+            <p class="mt-1 text-sm text-neutral-600">Unique assistants across your courses.</p>
+            <p class="mt-1 text-xs text-neutral-500">Assignments total: <span id="taCountAssignments">0</span></p>
+            </div>
+            </div>
+        </div>
+      </section>
+
+      
+    </main>
+  </div>
+
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+        ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+        : null;
+
+    function clearSupabaseStorage() {
+    try {
+      const lsKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const k = localStorage.key(i);
+        if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) lsKeys.push(k);
+      }
+      lsKeys.forEach(k => localStorage.removeItem(k));
+
+      const ssKeys = [];
+      for (let i = 0; i < sessionStorage.length; i++) {
+        const k = sessionStorage.key(i);
+        if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ssKeys.push(k);
+      }
+      ssKeys.forEach(k => sessionStorage.removeItem(k));
+    } catch (_) {}
+  }
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try {
+      if (sb?.auth?.signOut) {
+        await sb.auth.signOut({ scope: 'global' });
+      }
+    } catch (_) {}
+
+    // Remove any Supabase artifacts and app-local hints
+    clearSupabaseStorage();
+    try {
+      localStorage.removeItem('teacher_logged_in');
+      localStorage.removeItem('teacher_user_id');
+      localStorage.removeItem('teacher_email');
+    } catch (_) {}
+
+    // Avoid back button restoring previous authenticated page
+    location.replace("{% url 'teachers_login' %}");
+  });
+
+    async function loadCounts() {
+        const userId = localStorage.getItem('teacher_user_id');
+        try {
+            const res = await fetch('/teachers/api/dashboard/counts/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId })
+            });
+            const j = await res.json();
+            if (j?.ok) {
+            document.getElementById('coursesCount').textContent = j.courses_count ?? 0;
+            document.getElementById('studentsCount').textContent = j.students_count ?? 0;
+            // ... existing code ...
+            document.getElementById('taCountUnique').textContent = j.ta_unique_count ?? 0;
+            document.getElementById('taCountAssignments').textContent = j.ta_assignments_count ?? 0;
+
+            const code = j.teacher_code;
+            // Populate banner with code label and course name only (no special code)
+            document.getElementById('roleCodeLabel').textContent = code?.label || 'No code';
+            document.getElementById('roleCodeCourse').textContent = code?.course_name || '';
+            }
+        } catch (_) {}
+        }
+
+    async function loadTeacherName() {
+        const uid = localStorage.getItem('teacher_user_id');
+        const nameEl = document.getElementById('teacherDisplayName');
+        if (!uid) {
+            nameEl.textContent = localStorage.getItem('teacher_email') || 'Account';
+            document.getElementById('roleTitle').textContent = 'Teacher';
+            return;
+        }
+        try {
+            const res = await fetch('/teachers/api/teacher/info/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: uid })
+            });
+            const j = await res.json();
+            if (j?.ok && j?.full_name) {
+            nameEl.textContent = j.full_name;
+            } else {
+            nameEl.textContent = localStorage.getItem('teacher_email') || 'Account';
+            }
+            // Update role (title) in the banner
+            document.getElementById('roleTitle').textContent = j?.title || 'Teacher';
+        } catch (_) {
+            nameEl.textContent = localStorage.getItem('teacher_email') || 'Account';
+            document.getElementById('roleTitle').textContent = 'Teacher';
+        }
+        }
+
+  const nameBtn = document.getElementById('teacherNameBtn');
+  const profileMenu = document.getElementById('profileMenu');
+  nameBtn.addEventListener('click', () => {
+    profileMenu.classList.toggle('hidden');
+  });
+  document.addEventListener('click', (e) => {
+    if (!profileMenu.contains(e.target) && !nameBtn.contains(e.target)) {
+      profileMenu.classList.add('hidden');
+    }
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    try {
+      if (sb && sb.auth?.signOut) await sb.auth.signOut();
+    } catch (_) {}
+    try {
+      localStorage.removeItem('teacher_logged_in');
+      localStorage.removeItem('teacher_user_id');
+      localStorage.removeItem('teacher_email');
+    } catch (_) {}
+    window.location.href = "{% url 'teachers_login' %}";
+  });
+
+  loadTeacherName();
+  loadCounts();
+</script>
+</body>
+</html>

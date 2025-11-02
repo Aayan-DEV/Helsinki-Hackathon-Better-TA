@@ -1,0 +1,258 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Courses</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' %}
+
+    <main class="flex-1">
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">menu_book</span>
+            <h1 class="text-xl font-semibold text-neutral-900">Courses</h1>
+          </div>
+          <button id="createCourseBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+            <span class="material-symbols-outlined">add_circle</span>
+            <span>Create</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="max-w-6xl mx-auto px-6 py-6">
+        <div id="coursesList" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Courses inserted here -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Create Course Modal -->
+  <div id="createModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm hidden">
+    <div class="max-w-md mx-auto mt-24 rounded-lg bg-white border border-neutral-200 shadow-xl">
+      <div class="p-6">
+        <h2 class="text-lg font-semibold text-neutral-900 flex items-center gap-2">
+          <span class="material-symbols-outlined">note_add</span>
+          New Course
+        </h2>
+        <form id="createCourseForm" class="mt-4 space-y-4">
+          <div>
+            <label class="text-sm text-neutral-700">Title</label>
+            <input id="courseTitle" type="text" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" placeholder="e.g., Introduction to Algebra" required>
+          </div>
+          <div>
+            <label class="text-sm text-neutral-700">Description</label>
+            <textarea id="courseDesc" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-neutral-400" rows="3" placeholder="What the course covers" required></textarea>
+          </div>
+
+          <div class="flex items-center justify-end gap-3 pt-2">
+            <button type="button" id="cancelCreateBtn" class="rounded-md px-4 py-2 border border-neutral-300 text-neutral-700 hover:bg-neutral-50">Cancel</button>
+            <button id="submitCreateBtn" class="rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black disabled:opacity-50 disabled:cursor-not-allowed">Create</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const createCourseBtn = document.getElementById('createCourseBtn');
+    const createModal = document.getElementById('createModal');
+    const cancelCreateBtn = document.getElementById('cancelCreateBtn');
+    const submitCreateBtn = document.getElementById('submitCreateBtn');
+    const createCourseForm = document.getElementById('createCourseForm');
+    const courseTitleEl = document.getElementById('courseTitle');
+    const courseDescEl = document.getElementById('courseDesc');
+    const coursesListEl = document.getElementById('coursesList');
+
+    function openModal() { createModal.classList.remove('hidden'); }
+    function closeModal() { createModal.classList.add('hidden'); }
+
+    function courseCard(c) {
+      const detailHref = "/teachers/menu/courses/" + c.id + "/";
+      return `
+        <article class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6 hover:border-neutral-300">
+          <div class="flex items-start justify-between">
+            <div>
+              <a href="${detailHref}" class="group">
+                <h3 class="text-lg font-semibold text-neutral-900 group-hover:underline">${c.title}</h3>
+              </a>
+              <p class="mt-1 text-sm text-neutral-700">${c.description}</p>
+            </div>
+            <a href="${detailHref}" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 hover:bg-black transition-colors">
+              <span class="material-symbols-outlined">open_in_new</span>
+              <span>Open</span>
+            </a>
+          </div>
+
+          <div class="mt-4 flex items-center gap-4 text-sm text-neutral-600">
+            <span class="inline-flex items-center gap-1">
+              <span class="material-symbols-outlined">group</span>
+              <span>${c.enrolled_count || 0} students</span>
+            </span>
+          </div>
+
+          <div class="mt-4">
+            <h4 class="text-sm font-medium text-neutral-900 flex items-center gap-1">
+              <span class="material-symbols-outlined text-neutral-700">supervisor_account</span>
+              <span>Teaching Assistants</span>
+            </h4>
+            <div data-ta-list="${c.id}" class="mt-2 text-sm text-neutral-600">
+              <span class="inline-flex items-center gap-1 text-neutral-500">
+                <span class="material-symbols-outlined text-sm">hourglass</span>
+                <span>Loading assistants…</span>
+              </span>
+            </div>
+          </div>
+        </article>
+      `;
+    }
+
+    const API_LIST_URL = "{% url 'teachers_api_list_courses' %}";
+    const API_CREATE_URL = "{% url 'teachers_api_create_course' %}";
+    const TA_LIST_URL = "{% url 'teachers_api_ta_list' %}";
+
+    function assistantsMarkup(courseId, assistants) {
+      if (!Array.isArray(assistants) || assistants.length === 0) {
+        return `<p class="text-neutral-600">No assistants yet.</p>`;
+      }
+      const items = assistants.slice(0, 3).map(a => `
+        <li class="flex items-center justify-between py-1">
+          <span class="text-neutral-800">${a.name}</span>
+          <span class="text-xs font-mono text-neutral-500">${a.special_code}</span>
+        </li>
+      `).join('');
+      const detailHref = "/teachers/menu/courses/" + courseId + "/";
+      return `
+        <ul class="divide-y divide-neutral-200">${items}</ul>
+        ${assistants.length > 3 ? `
+          <a href="${detailHref}" class="mt-2 inline-flex items-center gap-1 text-xs text-neutral-700 hover:underline">
+            <span class="material-symbols-outlined text-xs">more_horiz</span>
+            <span>View all (${assistants.length})</span>
+          </a>
+        ` : ''}
+      `;
+    }
+
+    async function populateCourseAssistants(courses) {
+      const userId = localStorage.getItem('teacher_user_id');
+      if (!Array.isArray(courses) || courses.length === 0) return;
+      const tasks = courses.map(async (c) => {
+        const mount = document.querySelector(`[data-ta-list="${c.id}"]`);
+        if (!mount) return;
+        try {
+          const res = await fetch(TA_LIST_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: userId, course_id: c.id })
+          });
+          const j = await res.json();
+          if (j?.ok && Array.isArray(j.assistants)) {
+            mount.innerHTML = assistantsMarkup(c.id, j.assistants);
+          } else {
+            mount.innerHTML = `<p class="text-neutral-600">Unable to load assistants.</p>`;
+          }
+        } catch (_) {
+          mount.innerHTML = `<p class="text-neutral-600">Network error while loading assistants.</p>`;
+        }
+      });
+      await Promise.allSettled(tasks);
+    }
+
+    async function loadCourses() {
+      const userId = localStorage.getItem('teacher_user_id');
+      const userEmail = localStorage.getItem('teacher_email');
+      try {
+        const res = await fetch(API_LIST_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, user_email: userEmail })
+        });
+        const j = await res.json();
+        if (j?.ok && Array.isArray(j.courses)) {
+          coursesListEl.innerHTML = j.courses.length
+            ? j.courses.map(courseCard).join('')
+            : `
+              <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+                <p class="text-sm text-neutral-700">No courses yet. Click “Create” to add your first course.</p>
+              </div>
+            `;
+          await populateCourseAssistants(j.courses);
+        } else {
+          coursesListEl.innerHTML = `
+            <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+              <p class="text-sm text-neutral-700">Unable to load courses.</p>
+            </div>
+          `;
+        }
+      } catch (_) {
+        coursesListEl.innerHTML = `
+          <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+            <p class="text-sm text-neutral-700">Network error while loading courses.</p>
+          </div>
+        `;
+      }
+    }
+
+    createCourseBtn.addEventListener('click', openModal);
+    cancelCreateBtn.addEventListener('click', closeModal);
+
+    createCourseForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const title = courseTitleEl.value.trim();
+      const description = courseDescEl.value.trim();
+      const userId = localStorage.getItem('teacher_user_id');
+      const userEmail = localStorage.getItem('teacher_email');
+
+      if (!title || !description) {
+        window.showMessage?.('Please provide a title and description.', 'error', 6000);
+        return;
+      }
+
+      submitCreateBtn.disabled = true;
+      try {
+        const res = await fetch(API_CREATE_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ user_id: userId, user_email: userEmail, title, description })
+        });
+        const j = await res.json();
+        if (!j?.ok) {
+          throw new Error(j?.error || 'Failed to create course');
+        }
+        window.showMessage?.('Course created successfully.', 'success', 6000);
+        closeModal();
+        courseTitleEl.value = '';
+        courseDescEl.value = '';
+        await loadCourses();
+      } catch (e2) {
+        window.showMessage?.(e2?.message || 'Failed to create course', 'error', 8000);
+      } finally {
+        submitCreateBtn.disabled = false;
+      }
+    });
+
+    loadCourses();
+  </script>
+</body>
+</html>

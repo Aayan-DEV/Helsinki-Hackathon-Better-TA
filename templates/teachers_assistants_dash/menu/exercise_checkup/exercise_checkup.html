@@ -1,0 +1,607 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <title>Exercise Checkup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'] },
+      }},
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='assistant' %}
+    <main class="flex-1 min-w-0">
+      <header class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">Exercise Checkup</h1>
+        <div class="flex items-center gap-3">
+            <span id="assistantName" class="text-sm text-neutral-700">Loading…</span>
+            <button id="signOutBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors">
+                <span class="material-symbols-outlined text-base">logout</span>
+                <span>Sign out</span>
+                
+            </button>
+        </div>
+      </header>
+
+      <section class="px-6 py-6 space-y-6">
+        <div id="coursesWrap" class="space-y-6">
+          <div class="text-sm text-neutral-700">Review your completed sessions across courses.</div>
+          <div id="coursesList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+
+        <div id="sessionWrap" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2 space-y-6">
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 id="sessionTitle" class="text-lg font-semibold text-neutral-900">Session</h2>
+                  <p id="sessionEndedAt" class="text-xs text-neutral-500 mt-1"></p>
+                </div>
+                <button id="backBtn" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm hover:bg-neutral-50">
+                  <span class="material-symbols-outlined text-sm">arrow_back</span>
+                  <span>Back</span>
+                </button>
+              </div>
+              <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="rounded-md border border-neutral-200 p-3">
+                  <h3 class="text-sm font-medium text-neutral-900">Exercise Details</h3>
+                  <div class="mt-2 text-sm text-neutral-800">
+                    <div><span class="text-neutral-600">Title:</span> <span id="exTitle">—</span></div>
+                    <div><span class="text-neutral-600">Total points:</span> <span id="exTotalPoints">—</span></div>
+                    <div><span class="text-neutral-600">Details:</span></div>
+                    <div id="exDetails" class="mt-1 text-neutral-700 whitespace-pre-wrap">—</div>
+                  </div>
+                </div>
+                <div class="rounded-md border border-neutral-200 p-3">
+                  <h3 class="text-sm font-medium text-neutral-900">Question Structure</h3>
+                  <div id="structureTree" class="mt-2 text-sm text-neutral-800"></div>
+                </div>
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <h3 class="text-sm font-medium text-neutral-900">Submissions</h3>
+                <div class="flex items-center gap-3">
+                  <input id="searchInput" type="text" class="rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="Search by name or ID" />
+                  <button id="saveScoresBtn" class="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700">
+                    <span class="material-symbols-outlined text-sm">save</span>
+                    <span>Save scores</span>
+                  </button>
+                </div>
+              </div>
+              <div id="subsList" class="mt-3 space-y-2">
+                <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Loading…</div>
+              </div>
+            </div>
+          </div>
+          <div class="space-y-6">
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <h3 class="text-sm font-medium text-neutral-900">Notes</h3>
+              <p class="mt-2 text-sm text-neutral-700">Request copies when unsure. A request is recorded and marked received when the student submits from their dashboard.</p>
+            </div>
+            <div class="mt-4">
+    <h4 class="text-sm font-medium text-neutral-900">Requested Evidence</h4>
+    <div id="requestedEvidenceList" class="mt-2 space-y-3"></div>
+  </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <script>
+    // Optional Supabase client; used only if keys are present
+  const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+  const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+  const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+    ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+    : null;
+
+  const API_ASSISTANT_LOOKUP = "{% url 'ta_api_assistant_lookup' %}";
+  const API_SESSION_LIST_CLOSED = "{% url 'ta_api_session_list_closed' %}";
+  const API_SESSION_GET = "{% url 'ta_api_session_get' %}";
+  const API_SESSION_SUBMISSIONS = "{% url 'ta_api_session_submissions' %}";
+   const API_SUBMISSION_EVIDENCE_DECISION = "{% url 'ta_api_submission_evidence_decision' %}";
+  const API_SESSION_GRADE_CLOSE = "{% url 'ta_api_session_grade_close' %}";
+  const API_SUBMISSION_REQUEST_EVIDENCE = "{% url 'ta_api_submission_request_evidence' %}";
+
+  const assistantCode = localStorage.getItem('assistantCode') || '';
+  const assistantNameEl = document.getElementById('assistantName');
+
+  // Add robust identifiers and fallback label
+  const taUserId = localStorage.getItem('ta_user_id') || '';
+  const taEmail = localStorage.getItem('ta_email') || '';
+  assistantNameEl.textContent = localStorage.getItem('assistantName') || 'Assistant';
+
+  const coursesWrapEl = document.getElementById('coursesWrap');
+  const coursesListEl = document.getElementById('coursesList');
+  const sessionWrapEl = document.getElementById('sessionWrap');
+
+  const sessionTitleEl = document.getElementById('sessionTitle');
+  const sessionEndedAtEl = document.getElementById('sessionEndedAt');
+  const backBtn = document.getElementById('backBtn');
+
+  const exTitleEl = document.getElementById('exTitle');
+  const exTotalPointsEl = document.getElementById('exTotalPoints');
+  const exDetailsEl = document.getElementById('exDetails');
+  const structureTreeEl = document.getElementById('structureTree');
+
+  const subsListEl = document.getElementById('subsList');
+  const searchInputEl = document.getElementById('searchInput');
+  const saveScoresBtn = document.getElementById('saveScoresBtn');
+
+  let sessionsByCourse = new Map(); // course_id -> { course_title, sessions: [] }
+  let sessionsIndexBySlug = new Map(); // slug -> session payload
+  let selectedSlug = null;
+  const gradingByStudent = new Map(); // student_id -> { score }
+
+  document.getElementById('signOutBtn')?.addEventListener('click', async () => {
+    try {
+      localStorage.removeItem('ta_logged_in');
+      localStorage.removeItem('ta_user_id');
+      localStorage.removeItem('ta_email');
+      localStorage.removeItem('assistantCode');
+      localStorage.removeItem('assistantName');
+    } catch (_) {}
+    try { if (sb) await sb.auth.signOut(); } catch (_) {}
+    window.location.href = "{% url 'teachers_assistants_login' %}";
+  });
+
+  async function init() {
+    try {
+      // Assistant label (robust lookup)
+      const res0 = await fetch(API_ASSISTANT_LOOKUP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_code: assistantCode,
+          supabase_user_id: taUserId,
+          email: taEmail
+        })
+      });
+      const js0 = await res0.json();
+      if (js0?.ok) {
+        const label = js0.assistant?.label || js0.assistant?.email || 'Assistant';
+        assistantNameEl.textContent = label;
+        try {
+          if (js0.assistant?.special_code) localStorage.setItem('assistantCode', js0.assistant.special_code);
+          localStorage.setItem('assistantName', label);
+        } catch (_) {}
+      } else {
+        assistantNameEl.textContent = localStorage.getItem('assistantName') || 'Assistant';
+      }
+
+      // Closed sessions list (robust identifiers)
+      const res = await fetch(API_SESSION_LIST_CLOSED, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_code: assistantCode,
+          supabase_user_id: taUserId,
+          email: taEmail
+        })
+      });
+      const js = await res.json();
+      if (!js.ok) return alert(js.error || 'Failed to load completed sessions');
+
+      groupSessionsByCourse(js.sessions || []);
+      renderCourses();
+    } catch (e) {
+      console.error(e);
+      alert('Failed to load data');
+    }
+  }
+
+  function groupSessionsByCourse(sessions) {
+    sessionsByCourse.clear();
+    sessionsIndexBySlug.clear();
+    sessions.forEach(s => {
+      sessionsIndexBySlug.set(s.slug, s);
+      const entry = sessionsByCourse.get(s.course_id) || { course_title: s.course_title, sessions: [] };
+      entry.sessions.push(s);
+      sessionsByCourse.set(s.course_id, entry);
+    });
+  }
+
+  function renderCourses() {
+    coursesListEl.innerHTML = '';
+    if (!sessionsByCourse.size) {
+      coursesListEl.innerHTML = '<div class="rounded-md border border-neutral-200 bg-white p-4 text-sm text-neutral-700">No completed sessions yet.</div>';
+      return;
+    }
+    for (const [courseId, entry] of sessionsByCourse.entries()) {
+      const card = document.createElement('div');
+      card.className = 'rounded-lg border border-neutral-200 bg-white p-4 shadow-sm space-y-3';
+      card.innerHTML = `
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-base font-semibold text-neutral-900">${entry.course_title}</h2>
+            <div class="text-xs text-neutral-600">Completed sessions: ${entry.sessions.length}</div>
+          </div>
+        </div>
+        <div class="space-y-2">
+          ${entry.sessions.map(s => `
+            <div class="rounded-md border border-neutral-200 p-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium text-neutral-900">${s.title}</div>
+                <div class="text-xs text-neutral-600">Ended: ${s.ended_at ? new Date(s.ended_at).toLocaleString() : '—'}</div>
+                ${s.exercise?.title ? `<div class="mt-1 text-xs text-neutral-600">Exercise: ${s.exercise.title}</div>` : ''}
+              </div>
+              <button data-slug="${s.slug}" class="openSessionBtn inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-2.5 py-1.5 text-sm hover:bg-black">
+                <span class="material-symbols-outlined text-sm">open_in_new</span>
+                <span>Open</span>
+              </button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      coursesListEl.appendChild(card);
+    }
+
+    document.querySelectorAll('.openSessionBtn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        selectedSlug = btn.getAttribute('data-slug');
+        openSession(selectedSlug);
+      });
+    });
+  }
+
+  async function openSession(slug) {
+    const s = sessionsIndexBySlug.get(slug);
+    if (!s) return;
+    coursesWrapEl.classList.add('hidden');
+    sessionWrapEl.classList.remove('hidden');
+
+    sessionTitleEl.textContent = s.title || 'Session';
+    sessionEndedAtEl.textContent = s.ended_at ? `Ended: ${new Date(s.ended_at).toLocaleString()}` : '';
+    exTitleEl.textContent = s.exercise?.title || '—';
+    exTotalPointsEl.textContent = s.exercise?.total_points ?? '—';
+    exDetailsEl.textContent = s.exercise?.details || '—';
+
+    gradingByStudent.clear();
+
+    // Load structure
+    try {
+      const res = await fetch(API_SESSION_GET, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug })
+      });
+      const js = await res.json();
+      if (js?.ok) renderStructureTree(js.session?.structure || {});
+    } catch (e) { /* silent */ }
+
+    // Load submissions
+    await loadSubmissions(slug);
+  }
+
+  function renderStructureTree(struct) {
+    function nodeHtml(node) {
+      const title = node.label || '';
+      const children = (node.children || []).map(nodeHtml).join('');
+      return `
+        <div class="ml-0">
+          <div class="rounded border border-neutral-200 bg-neutral-50 px-2 py-1 text-sm text-neutral-900">${title}</div>
+          ${children ? `<div class="ml-4 mt-1 space-y-1">${children}</div>` : ''}
+        </div>
+      `;
+    }
+    const qs = (struct.questions || []).map(nodeHtml).join('');
+    structureTreeEl.innerHTML = qs || '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No structure</div>';
+  }
+
+  async function loadSubmissions(slug) {
+    subsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Loading…</div>';
+    try {
+      const res = await fetch(API_SESSION_SUBMISSIONS, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ slug })
+      });
+      const js = await res.json();
+      if (!js.ok) return subsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Failed to load submissions</div>';
+
+      const items = js.submissions || [];
+      renderSubs(items);
+
+      // New: render requested evidence list for this session
+      renderRequestedEvidence(items);
+
+      // Search filter
+      searchInputEl.oninput = () => {
+        const q = (searchInputEl.value || '').toLowerCase();
+        const filtered = items.filter(s => (s.student_name || '').toLowerCase().includes(q) || (s.student_id || '').toLowerCase().includes(q));
+        renderSubs(filtered);
+      };
+    } catch (e) {
+      console.error(e);
+      subsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Failed to load submissions</div>';
+    }
+  }
+
+  // New: helper to render Requested Evidence section
+  function renderRequestedEvidence(items) {
+    const listEl = document.getElementById('requestedEvidenceList');
+    if (!listEl) return;
+
+    const requested = (items || []).filter(s => !!s.evidence_requested_at);
+    if (!requested.length) {
+      listEl.innerHTML = '<div class="rounded-md border border-neutral-200 bg-white p-3 text-sm text-neutral-700">No evidence requests for this session.</div>';
+      return;
+    }
+
+    listEl.innerHTML = requested.map(s => {
+      const decision = (s.evidence_decision || '').toLowerCase();
+      const decided = decision === 'accepted' || decision === 'declined';
+      const pillBase = 'decision-pill text-xs px-2 py-0.5 rounded border';
+      const pillClass = decided
+        ? (decision === 'accepted'
+            ? `${pillBase} border-green-300 bg-green-50 text-green-700`
+            : `${pillBase} border-red-300 bg-red-50 text-red-700`)
+        : `${pillBase} border-neutral-300 bg-neutral-50 text-neutral-700`;
+      const detailsState = decided ? 'max-h-0 opacity-0' : 'max-h-96 opacity-100';
+
+      return `
+        <div class="rounded-md border border-red-300 bg-red-50 p-3 evidence-card" data-id="${s.id}">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-neutral-900">${s.student_name}</div>
+              <div class="text-xs text-neutral-600">${s.student_id}</div>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="${pillClass}">Decision: ${decision || 'pending'}</span>
+              <button class="toggle-btn inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2 py-1 text-xs hover:bg-neutral-50"
+                data-id="${s.id}">
+                <span class="material-symbols-outlined text-xs">${decided ? 'unfold_more' : 'unfold_less'}</span>
+                <span>Details</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="details mt-3 transition-all duration-300 overflow-hidden ${detailsState}">
+            <div class="grid grid-cols-2 gap-2 text-sm text-neutral-800">
+              <div><span class="text-neutral-600">Group:</span> ${s.group_index ?? '—'}</div>
+              <div><span class="text-neutral-600">Score:</span> <span class="score-val">${s.score ?? '—'}</span></div>
+              <div class="col-span-2"><span class="text-neutral-600">Requested:</span> ${s.evidence_requested_at ? new Date(s.evidence_requested_at).toLocaleString() : '—'}</div>
+              <div class="col-span-2"><span class="text-neutral-600">Received:</span> ${s.evidence_received_at ? new Date(s.evidence_received_at).toLocaleString() : '—'}</div>
+            </div>
+
+            ${s.evidence_url
+              ? `<div class="mt-3"><img src="${s.evidence_url}" alt="Evidence" class="max-h-48 rounded border border-neutral-200" /></div>`
+              : `<p class="mt-3 text-xs text-neutral-600">Awaiting student upload.</p>`}
+
+            ${!decided ? `
+              <div class="mt-3 flex items-center gap-3 controls">
+                <button class="accept-btn inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors"
+                  data-id="${s.id}">
+                  <span class="material-symbols-outlined text-base">check_circle</span>
+                  <span>Accept</span>
+                </button>
+                <div class="flex items-center gap-2">
+                  <input type="number" min="0" class="decline-score border border-neutral-300 rounded px-2 py-1 text-sm" placeholder="New score" data-id="${s.id}" />
+                  <button class="decline-btn inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50"
+                    data-id="${s.id}">
+                    <span class="material-symbols-outlined text-base">cancel</span>
+                    <span>Decline</span>
+                  </button>
+                </div>
+              </div>
+            ` : ``}
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Toggle slider open/close
+    listEl.querySelectorAll('.toggle-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const card = listEl.querySelector(`.evidence-card[data-id="${id}"]`);
+        const details = card?.querySelector('.details');
+        if (!details) return;
+        const isCollapsed = details.classList.contains('max-h-0');
+        details.classList.toggle('max-h-0', !isCollapsed);
+        details.classList.toggle('opacity-0', !isCollapsed);
+        details.classList.toggle('max-h-96', isCollapsed);
+        details.classList.toggle('opacity-100', isCollapsed);
+        const icon = btn.querySelector('.material-symbols-outlined');
+        if (icon) icon.textContent = isCollapsed ? 'unfold_less' : 'unfold_more';
+      });
+    });
+
+    // Bind Accept/Decline only for pending items
+    listEl.querySelectorAll('.accept-btn').forEach(btn => {
+      btn.addEventListener('click', () => decideEvidenceTA(btn.getAttribute('data-id'), 'accept'));
+    });
+    listEl.querySelectorAll('.decline-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const scoreEl = listEl.querySelector(`.decline-score[data-id="${id}"]`);
+        const newScore = parseInt(scoreEl?.value || '', 10);
+        if (Number.isNaN(newScore)) {
+          alert('Enter new score to decline');
+          return;
+        }
+        decideEvidenceTA(id, 'decline', newScore);
+      });
+    });
+  }
+
+  // Update: collapse immediately after decision and hide controls
+  async function decideEvidenceTA(submissionId, decision, newScore) {
+    try {
+      const resp = await fetch(API_SUBMISSION_EVIDENCE_DECISION, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          assistant_code: assistantCode,
+          supabase_user_id: taUserId,
+          email: taEmail,
+          submission_id: Number(submissionId),
+          decision,
+          new_score: newScore
+        })
+      });
+      const json = await resp.json();
+      if (!json?.ok) throw new Error(json?.error || 'Failed to decide');
+
+      // Collapse and update card UI without waiting for re-render
+      const listEl = document.getElementById('requestedEvidenceList');
+      const card = listEl?.querySelector(`.evidence-card[data-id="${submissionId}"]`);
+      if (card) {
+        const details = card.querySelector('.details');
+        const controls = card.querySelector('.controls');
+        const pill = card.querySelector('.decision-pill');
+        const scoreVal = card.querySelector('.score-val');
+
+        if (controls) controls.classList.add('hidden');
+        if (details) {
+          details.classList.add('max-h-0', 'opacity-0');
+          details.classList.remove('max-h-96', 'opacity-100');
+        }
+        if (pill) {
+          pill.textContent = `Decision: ${json.decision}`;
+          pill.className = 'decision-pill text-xs px-2 py-0.5 rounded border ' + (
+            json.decision === 'accepted'
+              ? 'border-green-300 bg-green-50 text-green-700'
+              : 'border-red-300 bg-red-50 text-red-700'
+          );
+        }
+        if (scoreVal && typeof json.score === 'number') {
+          scoreVal.textContent = json.score;
+        }
+        const toggleIcon = card.querySelector('.toggle-btn .material-symbols-outlined');
+        if (toggleIcon) toggleIcon.textContent = 'unfold_more';
+      }
+
+      // Refresh list so other items reflect any changes
+      await loadSubmissions(selectedSlug);
+    } catch (e) {
+      alert(e?.message || 'Action failed');
+    }
+  }
+
+  function renderSubs(items) {
+    subsListEl.innerHTML = '';
+    if (!items.length) {
+      subsListEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No submissions</div>';
+      return;
+    }
+    items.forEach(s => {
+      const existing = gradingByStudent.get(s.student_id) || {};
+      const initialScore = (existing.score !== undefined) ? existing.score : (typeof s.score === 'number' ? s.score : '');
+      const status = s.evidence_received_at
+        ? `Received: ${new Date(s.evidence_received_at).toLocaleString()}`
+        : (s.evidence_requested_at ? `Requested: ${new Date(s.evidence_requested_at).toLocaleString()}` : '—');
+
+      const row = document.createElement('div');
+      row.className = 'flex items-center justify-between rounded-md border border-neutral-200 bg-white px-3 py-2';
+      row.innerHTML = `
+        <div>
+          <div class="text-sm font-medium text-neutral-900">${s.student_name}</div>
+          <div class="text-xs text-neutral-600">${s.student_id}</div>
+          <div class="mt-1 text-xs text-neutral-600">Evidence: ${status}</div>
+        </div>
+        <div class="flex items-center gap-2">
+          <input type="number" value="${initialScore === null ? '' : initialScore}" data-student-id="${s.student_id}" class="score-input w-20 rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="Score" />
+          <button data-student-id="${s.student_id}" class="reqCopyBtn inline-flex items-center gap-1 rounded-md border border-neutral-300 px-2.5 py-1.5 text-sm hover:bg-neutral-50">
+            <span class="material-symbols-outlined text-sm">outgoing_mail</span>
+            <span>Request copy</span>
+          </button>
+        </div>
+      `;
+      subsListEl.appendChild(row);
+    });
+
+    // Bind score inputs
+    subsListEl.querySelectorAll('.score-input').forEach(inp => {
+      inp.addEventListener('input', () => {
+        const sid = inp.getAttribute('data-student-id');
+        gradingByStudent.set(sid, { score: inp.value !== '' ? parseInt(inp.value, 10) : null });
+      });
+    });
+
+    // Bind request copy
+    subsListEl.querySelectorAll('.reqCopyBtn').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const sid = btn.getAttribute('data-student-id');
+      if (!selectedSlug || !sid) return;
+      try {
+        const res = await fetch(API_SUBMISSION_REQUEST_EVIDENCE, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            assistant_code: assistantCode,
+            supabase_user_id: taUserId,
+            email: taEmail,
+            slug: selectedSlug,
+            student_id: sid
+          })
+        });
+        const js = await res.json();
+        if (!js.ok) return alert(js.error || 'Failed to request copy');
+        await loadSubmissions(selectedSlug);
+      } catch (e) {
+        console.error(e);
+        alert('Failed to request copy');
+      }
+    });
+  });
+  }
+
+  saveScoresBtn.addEventListener('click', async () => {
+    if (!selectedSlug) return;
+    // Prepare graded payload from current inputs
+    const graded = [];
+    subsListEl.querySelectorAll('.score-input').forEach(inp => {
+      const sid = inp.getAttribute('data-student-id');
+      const val = inp.value;
+      graded.push({
+        student_id: sid,
+        score: (val !== '' ? parseInt(val, 10) : null),
+      });
+    });
+
+    try {
+      const res = await fetch(API_SESSION_GRADE_CLOSE, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      assistant_code: assistantCode,
+      supabase_user_id: taUserId,
+      email: taEmail,
+      slug: selectedSlug,
+      graded
+    })
+  });
+      const js = await res.json();
+      if (!js.ok) return alert(js.error || 'Failed to save scores');
+      alert('Scores saved.');
+      await loadSubmissions(selectedSlug);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to save scores');
+    }
+  });
+
+  backBtn.addEventListener('click', () => {
+    sessionWrapEl.classList.add('hidden');
+    coursesWrapEl.classList.remove('hidden');
+    selectedSlug = null;
+    gradingByStudent.clear();
+  });
+
+  init();
+  </script>
+</body>
+</html>

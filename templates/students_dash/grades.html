@@ -1,0 +1,387 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Grades</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+
+  <!-- Optional: SheetJS for .xlsx export; falls back to CSV if not available -->
+  <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <style>
+    @media print {
+      /* Hide non-essential sections when printing to PDF */
+      nav, header .actions, .export-actions, .student-badge { display: none !important; }
+      header, section { border: none !important; box-shadow: none !important; }
+      table { page-break-inside: auto; }
+    }
+  </style>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='student' %}
+
+    <main class="flex-1">
+      <!-- Header -->
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">grade</span>
+            <h1 class="text-xl font-semibold text-neutral-900">My Grades</h1>
+          </div>
+          <div class="relative actions">
+            <button id="studentNameBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+              <span class="material-symbols-outlined text-base">person</span>
+              <span class="text-sm">{{ student_email|default:"" }}</span>
+              <span class="material-symbols-outlined text-base">expand_more</span>
+            </button>
+            <div id="profileMenu" class="absolute right-0 mt-2 w-56 rounded-md bg-white border border-neutral-200 shadow-lg hidden">
+              <div class="px-3 py-2">
+                <p class="text-sm font-medium text-neutral-900">{{ student_name|default:"" }}</p>
+                <p class="text-xs text-neutral-600">Student ID: {{ student_id|default:"" }}</p>
+              </div>
+              <div class="border-t border-neutral-200"></div>
+              <button id="signOutBtn" class="w-full text-left inline-flex items-center gap-2 px-3 py-2 text-sm hover:bg-neutral-50">
+                <span class="material-symbols-outlined text-base">logout</span>
+                <span>Sign out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Student badge -->
+      <section class="bg-neutral-900 text-white student-badge">
+        <div class="max-w-6xl mx-auto px-6 py-3">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">badge</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold">Student</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_name|default:"" }}</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_id|default:"" }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Content -->
+      <section class="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <!-- Summary -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-neutral-900">insights</span>
+              <h2 class="text-lg font-semibold text-neutral-900">Summary</h2>
+            </div>
+            <div class="export-actions flex items-center gap-2">
+              <button id="exportPdfBtn" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                <span class="material-symbols-outlined text-base">picture_as_pdf</span>
+                <span>Export PDF</span>
+              </button>
+              <button id="exportExcelBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors">
+                <span class="material-symbols-outlined text-base">grid_on</span>
+                <span>Export Excel</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Completed Sessions</p>
+              <p id="sumCompleted" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Average Score</p>
+              <p id="sumAvgScore" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Highest Score</p>
+              <p id="sumMaxScore" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+            <div class="rounded-md border border-neutral-200 p-4">
+              <p class="text-sm text-neutral-600">Lowest Score</p>
+              <p id="sumMinScore" class="mt-1 text-2xl font-semibold text-neutral-900">—</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Grades Table -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">table</span>
+            <h2 class="text-lg font-semibold text-neutral-900">Completed Exercises and Grades</h2>
+          </div>
+
+          <div class="mt-4 overflow-x-auto">
+            <table id="gradesTable" class="min-w-full border border-neutral-200 rounded-md overflow-hidden">
+              <thead class="bg-neutral-50">
+                <tr class="text-left text-xs text-neutral-700">
+                  <th class="px-3 py-2 border-b border-neutral-200">Course</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Exercise</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Assistant</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Group</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Submitted At</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Score</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Total Points</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Percent</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Evidence Req.</th>
+                  <th class="px-3 py-2 border-b border-neutral-200">Evidence Rec.</th>
+                </tr>
+              </thead>
+              <tbody id="gradesTBody" class="text-sm text-neutral-800"></tbody>
+            </table>
+            <p id="noDataMsg" class="mt-3 text-sm text-neutral-600 hidden">No graded sessions yet.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    const FULL_URL = "{% url 'students_exercises_full' %}";
+    const LOGOUT_URL = "{% url 'students_logout_api' %}";
+    const LOGIN_URL = "{% url 'students_login' %}";
+
+    const nameBtn = document.getElementById('studentNameBtn');
+    const profileMenu = document.getElementById('profileMenu');
+    nameBtn.addEventListener('click', () => profileMenu.classList.toggle('hidden'));
+    document.addEventListener('click', (e) => {
+      if (!profileMenu.contains(e.target) && !nameBtn.contains(e.target)) profileMenu.classList.add('hidden');
+    });
+
+    function clearSupabaseStorage() {
+      try {
+        const ls = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ls.push(k);
+        }
+        ls.forEach(k => localStorage.removeItem(k));
+        const ss = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ss.push(k);
+        }
+        ss.forEach(k => sessionStorage.removeItem(k));
+      } catch (_) {}
+    }
+
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      try { if (sb?.auth?.signOut) await sb.auth.signOut({ scope: 'global' }); } catch (_) {}
+      clearSupabaseStorage();
+      try {
+        const resp = await fetch(LOGOUT_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) return alert(json?.error || 'Sign out failed');
+        location.replace(LOGIN_URL);
+      } catch (e) {
+        alert('Network error during sign out');
+      }
+    });
+
+    const sumCompletedEl = document.getElementById('sumCompleted');
+    const sumAvgScoreEl = document.getElementById('sumAvgScore');
+    const sumMaxScoreEl = document.getElementById('sumMaxScore');
+    const sumMinScoreEl = document.getElementById('sumMinScore');
+
+    const gradesTBody = document.getElementById('gradesTBody');
+    const noDataMsg = document.getElementById('noDataMsg');
+
+    function percent(score, total) {
+      if (score == null || total == null || total <= 0) return '—';
+      return ((score / total) * 100).toFixed(1) + '%';
+    }
+
+    function formatDate(s) {
+      try { return s ? new Date(s).toLocaleString() : '—'; } catch (_) { return '—'; }
+    }
+
+    function renderTable(rows) {
+      if (!rows.length) {
+        gradesTBody.innerHTML = '';
+        noDataMsg.classList.remove('hidden');
+        return;
+      }
+      noDataMsg.classList.add('hidden');
+      gradesTBody.innerHTML = rows.map(r => `
+        <tr class="border-b border-neutral-200 hover:bg-neutral-50">
+          <td class="px-3 py-2">${r.course_title}</td>
+          <td class="px-3 py-2">${r.exercise_title}</td>
+          <td class="px-3 py-2">${r.assistant_name || '—'}</td>
+          <td class="px-3 py-2">${r.group_index ?? '—'}</td>
+          <td class="px-3 py-2">${formatDate(r.submitted_at)}</td>
+          <td class="px-3 py-2">${r.score ?? '—'}</td>
+          <td class="px-3 py-2">${r.total_points ?? '—'}</td>
+          <td class="px-3 py-2">${percent(r.score, r.total_points)}</td>
+          <td class="px-3 py-2">${formatDate(r.evidence_requested_at)}</td>
+          <td class="px-3 py-2">${formatDate(r.evidence_received_at)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function computeSummary(rows) {
+      const scored = rows.filter(r => r.score != null);
+      const count = scored.length;
+      const scores = scored.map(r => r.score);
+      const avg = count ? (scores.reduce((a,b) => a + b, 0) / count) : null;
+      const min = count ? Math.min(...scores) : null;
+      const max = count ? Math.max(...scores) : null;
+
+      sumCompletedEl.textContent = count || '0';
+      sumAvgScoreEl.textContent = (avg != null) ? avg.toFixed(2) : '—';
+      sumMaxScoreEl.textContent = (max != null) ? max : '—';
+      sumMinScoreEl.textContent = (min != null) ? min : '—';
+    }
+
+    async function loadGrades() {
+      try {
+        const resp = await fetch(FULL_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) throw new Error(json?.error || 'Failed to load grades');
+        const sessions = (json.sessions_attended || [])
+          .filter(s => s.score != null)  // completed (graded)
+          .map(s => ({
+            course_title: (s.course && s.course.title) || '—',
+            exercise_title: (s.exercise && s.exercise.title) || '—',
+            assistant_name: s.assistant_name || null,
+            group_index: s.group_index,
+            submitted_at: s.submitted_at,
+            score: s.score,
+            total_points: (s.exercise && s.exercise.total_points) || null,
+            evidence_requested_at: s.evidence_requested_at,
+            evidence_received_at: s.evidence_received_at,
+          }));
+
+        renderTable(sessions);
+        computeSummary(sessions);
+
+        // Wire export handlers with current data
+        wireExports(sessions);
+      } catch (e) {
+        alert(e?.message || 'Unable to load grades');
+      }
+    }
+
+    function downloadBlob(filename, mime, content) {
+      const blob = new Blob([content], { type: mime });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function toCSV(rows) {
+      const headers = ['Course','Exercise','Assistant','Group','Submitted At','Score','Total Points','Percent','Evidence Requested','Evidence Received'];
+      const lines = [headers.join(',')];
+      rows.forEach(r => {
+        const line = [
+          `"${(r.course_title||'').replace(/"/g,'""')}"`,
+          `"${(r.exercise_title||'').replace(/"/g,'""')}"`,
+          `"${(r.assistant_name||'').replace(/"/g,'""')}"`,
+          `${r.group_index ?? ''}`,
+          `"${formatDate(r.submitted_at)}"`,
+          `${r.score ?? ''}`,
+          `${r.total_points ?? ''}`,
+          `${(r.score != null && r.total_points) ? ((r.score / r.total_points) * 100).toFixed(2) : ''}`,
+          `"${formatDate(r.evidence_requested_at)}"`,
+          `"${formatDate(r.evidence_received_at)}"`
+        ];
+        lines.push(line.join(','));
+      });
+      return lines.join('\n');
+    }
+
+    function toSheetJS(rows) {
+      if (!window.XLSX || !window.XLSX.utils) return null;
+      const data = [
+        ['Course','Exercise','Assistant','Group','Submitted At','Score','Total Points','Percent','Evidence Requested','Evidence Received']
+      ];
+      rows.forEach(r => {
+        data.push([
+          r.course_title || '',
+          r.exercise_title || '',
+          r.assistant_name || '',
+          r.group_index ?? '',
+          formatDate(r.submitted_at),
+          r.score ?? '',
+          r.total_points ?? '',
+          (r.score != null && r.total_points) ? ((r.score / r.total_points) * 100).toFixed(2) : '',
+          formatDate(r.evidence_requested_at),
+          formatDate(r.evidence_received_at)
+        ]);
+      });
+      const ws = XLSX.utils.aoa_to_sheet(data);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Grades');
+      const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+      return wbout;
+    }
+
+    function wireExports(rows) {
+      const exportPdfBtn = document.getElementById('exportPdfBtn');
+      const exportExcelBtn = document.getElementById('exportExcelBtn');
+
+      exportPdfBtn.onclick = () => {
+        // Use browser print to "Save as PDF"
+        window.print();
+      };
+
+      exportExcelBtn.onclick = () => {
+        // Prefer .xlsx via SheetJS; fallback to CSV
+        try {
+          const xlsxData = toSheetJS(rows);
+          if (xlsxData) {
+            const blob = new Blob([xlsxData], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'grades.xlsx';
+            document.body.appendChild(a);
+            a.click();
+            a.remove();
+            URL.revokeObjectURL(url);
+            return;
+          }
+        } catch (_) {}
+        // Fallback to CSV
+        const csv = toCSV(rows);
+        downloadBlob('grades.csv', 'text/csv;charset=utf-8', csv);
+      };
+    }
+
+    // Kick off
+    loadGrades();
+  </script>
+</body>
+</html>

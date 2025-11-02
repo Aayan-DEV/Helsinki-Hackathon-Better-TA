@@ -1,0 +1,443 @@
+{% load static %}
+<!doctype html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Student Dashboard</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'],
+          },
+        },
+      },
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  {% include 'snippets/message/message.html' %}
+
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='student' %}
+
+    <main class="flex-1">
+      <!-- Header -->
+      <header class="bg-white border-b border-neutral-200">
+        <div class="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">school</span>
+            <h1 class="text-xl font-semibold text-neutral-900">Student Dashboard</h1>
+          </div>
+          <div class="relative">
+            <button id="studentNameBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-4 py-2 hover:bg-black transition-colors">
+              <span class="material-symbols-outlined">account_circle</span>
+              <span id="studentDisplayName">{{ student_email|default:"Account" }}</span>
+              <span class="material-symbols-outlined text-sm">expand_more</span>
+            </button>
+            <div id="profileMenu" class="absolute right-0 mt-2 w-64 rounded-md bg-white border border-neutral-200 shadow-lg p-2 hidden">
+              <div class="px-3 py-2">
+                <div class="text-xs text-neutral-500">Email</div>
+                <div class="text-sm font-medium text-neutral-900 break-all">{{ student_email }}</div>
+                <div class="mt-2 text-xs text-neutral-500">Name</div>
+                <div class="text-sm font-medium text-neutral-900">{{ student_name }}</div>
+                <div class="mt-2 text-xs text-neutral-500">Student ID</div>
+                <div class="text-sm font-medium text-neutral-900 break-all">{{ student_id }}</div>
+              </div>
+              <div class="mt-1 border-t border-neutral-200 pt-1">
+                <button id="signOutBtn" class="w-full inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-neutral-900 hover:bg-neutral-100">
+                  <span class="material-symbols-outlined">logout</span>
+                  <span>Sign out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- Role banner (keeps look in sync with teacher page) -->
+      <section class="bg-neutral-900 text-white">
+        <div class="max-w-6xl mx-auto px-6 py-3">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined">badge</span>
+            <div class="flex flex-wrap items-center gap-2">
+              <span class="font-semibold">Student</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_name|default:"" }}</span>
+              <span class="opacity-70">•</span>
+              <span class="font-medium">{{ student_id|default:"" }}</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Main content -->
+      <section class="max-w-6xl mx-auto px-6 py-6 space-y-6">
+        <!-- My Courses -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">library_books</span>
+            <h2 class="text-lg font-semibold text-neutral-900">My Courses</h2>
+          </div>
+          <div id="coursesList" class="mt-4 space-y-2">
+            <div class="text-sm text-neutral-600">Loading courses…</div>
+          </div>
+        </div>
+
+        <!-- Uncompleted Exercises -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-3">
+              <span class="material-symbols-outlined text-neutral-900">pending_actions</span>
+              <h2 class="text-lg font-semibold text-neutral-900">Uncompleted Exercises</h2>
+            </div>
+          </div>
+          <div id="uncompletedList" class="mt-4 space-y-2">
+            <div class="text-sm text-neutral-600">Loading uncompleted exercises…</div>
+          </div>
+          <p class="mt-2 text-xs text-neutral-500">Exercises with sessions but no submission from you yet.</p>
+        </div>
+
+        <!-- Exercises Without Selected Time -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">schedule</span>
+            <h2 class="text-lg font-semibold text-neutral-900">Exercises Without Selected Time</h2>
+          </div>
+          <div id="noTimeList" class="mt-4 space-y-2">
+            <div class="text-sm text-neutral-600">Loading exercises…</div>
+          </div>
+          <p class="mt-2 text-xs text-neutral-500">Pick your time group for each exercise. Your selection is saved.</p>
+        </div>
+
+        <!-- Evidence Requests -->
+        <div class="rounded-lg bg-white border border-neutral-200 shadow-sm p-6">
+          <div class="flex items-center gap-3">
+            <span class="material-symbols-outlined text-neutral-900">fact_check</span>
+            <h2 class="text-lg font-semibold text-neutral-900">Evidence Requests From TAs</h2>
+          </div>
+          <div id="evidenceList" class="mt-4 space-y-2">
+            <div class="text-sm text-neutral-600">Loading requests…</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Time Selection Modal -->
+      <div id="timeModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+        <div class="w-full max-w-md rounded-lg bg-white shadow-lg border border-neutral-200">
+          <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+            <h3 id="timeModalTitle" class="text-base font-semibold text-neutral-900">Choose Exercise Time</h3>
+            <button id="timeModalClose" class="p-2 rounded hover:bg-neutral-100">
+              <span class="material-symbols-outlined">close</span>
+            </button>
+          </div>
+          <div id="timeModalBody" class="p-4 space-y-2 text-sm text-neutral-800">
+            <div class="text-neutral-600">Loading available time groups…</div>
+          </div>
+          <div class="px-4 py-3 border-t border-neutral-200 flex justify-end gap-2">
+            <button id="timeModalCancel" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+              <span class="material-symbols-outlined text-base">cancel</span>
+              <span>Cancel</span>
+            </button>
+            <button id="timeModalSave" class="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700">
+              <span class="material-symbols-outlined text-base">save</span>
+              <span>Save Selection</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // Supabase init (for consistent global sign-out behavior)
+    const supabaseUrl = window.SUPABASE_URL || '{{ SUPABASE_URL|default:"" }}';
+    const supabaseKey = window.SUPABASE_ANON_KEY || '{{ SUPABASE_ANON_KEY|default:"" }}';
+    const sb = (supabaseUrl && supabaseKey && window.supabase?.createClient)
+      ? window.supabase.createClient(supabaseUrl, supabaseKey, { auth: { persistSession: true, autoRefreshToken: true } })
+      : null;
+
+    function clearSupabaseStorage() {
+      try {
+        const lsKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) lsKeys.push(k);
+        }
+        lsKeys.forEach(k => localStorage.removeItem(k));
+
+        const ssKeys = [];
+        for (let i = 0; i < sessionStorage.length; i++) {
+          const k = sessionStorage.key(i);
+          if (k && (k.startsWith('sb-') || k.toLowerCase().includes('supabase'))) ssKeys.push(k);
+        }
+        ssKeys.forEach(k => sessionStorage.removeItem(k));
+      } catch (_) {}
+    }
+
+    // Named routes
+    const DASHBOARD_SUMMARY_URL = "{% url 'students_dashboard_summary' %}";
+    const EXERCISE_GROUP_TIMES_URL = "{% url 'students_exercise_group_times' %}";
+    const SELECT_GROUP_TIME_URL = "{% url 'students_select_group_time' %}";
+    const LOGOUT_URL = "{% url 'students_logout_api' %}";
+    const LOGIN_URL = "{% url 'students_login' %}";
+
+    let currentExerciseId = null;
+    let currentSelectedGroupTimeId = null;
+
+    // Header dropdown
+    const nameBtn = document.getElementById('studentNameBtn');
+    const profileMenu = document.getElementById('profileMenu');
+    nameBtn.addEventListener('click', () => {
+      profileMenu.classList.toggle('hidden');
+    });
+    document.addEventListener('click', (e) => {
+      if (!profileMenu.contains(e.target) && !nameBtn.contains(e.target)) {
+        profileMenu.classList.add('hidden');
+      }
+    });
+
+    // Sign out
+    document.getElementById('signOutBtn').addEventListener('click', async () => {
+      try {
+        if (sb?.auth?.signOut) await sb.auth.signOut({ scope: 'global' });
+      } catch (_) {}
+      clearSupabaseStorage();
+
+      try {
+        const resp = await fetch(LOGOUT_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) return alert(json?.error || 'Sign out failed');
+
+        // Clear any local hints
+        try {
+          localStorage.removeItem('student_pk');
+          localStorage.removeItem('student_email');
+          localStorage.removeItem('student_id');
+        } catch (_) {}
+
+        // Avoid history back into an authenticated page
+        location.replace(LOGIN_URL);
+      } catch (e) {
+        alert('Network error during sign out');
+      }
+    });
+
+    // Load dashboard data
+    async function loadSummary() {
+      try {
+        const resp = await fetch(DASHBOARD_SUMMARY_URL, { method: 'POST' });
+        const json = await resp.json();
+        if (!json?.ok) {
+          renderError(json?.error || 'Failed to load dashboard');
+          return;
+        }
+        renderCourses(json.courses || []);
+        renderUncompleted(json.exercises_uncompleted || []);
+        renderNoTime(json.exercises_no_time_selected || []);
+        renderEvidence(json.evidence_requests || []);
+      } catch (e) {
+        renderError('Network error loading dashboard');
+      }
+    }
+
+    function renderCourses(courses) {
+      const el = document.getElementById('coursesList');
+      el.innerHTML = '';
+      if (!courses.length) {
+        el.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No enrolled courses yet.</div>';
+        return;
+      }
+      courses.forEach(c => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        row.innerHTML = `
+          <div>
+            <div class="text-sm font-medium text-neutral-900">${escapeHtml(c.title)}</div>
+            <div class="text-xs text-neutral-600">Teacher: ${escapeHtml(c.teacher_email || '')}</div>
+          </div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    function renderUncompleted(items) {
+      const el = document.getElementById('uncompletedList');
+      el.innerHTML = '';
+      if (!items.length) {
+        el.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">All caught up. No uncompleted exercises.</div>';
+        return;
+      }
+      items.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        row.innerHTML = `
+          <div>
+            <div class="text-sm font-medium text-neutral-900">${escapeHtml(e.title)}</div>
+            <div class="text-xs text-neutral-600">${escapeHtml(e.course_title)}</div>
+          </div>
+          <div class="text-xs text-neutral-600">Starts: ${formatDt(e.start_time)} • Due: ${formatDt(e.deadline)}</div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    function renderNoTime(items) {
+      const el = document.getElementById('noTimeList');
+      el.innerHTML = '';
+      if (!items.length) {
+        el.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">You’ve selected times for all exercises.</div>';
+        return;
+      }
+      items.forEach(e => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        const left = document.createElement('div');
+        left.innerHTML = `
+          <div class="text-sm font-medium text-neutral-900">${escapeHtml(e.title)}</div>
+          <div class="text-xs text-neutral-600">${escapeHtml(e.course_title)}</div>
+        `;
+        const right = document.createElement('div');
+        const chooseBtn = document.createElement('button');
+        chooseBtn.className = 'inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700';
+        chooseBtn.innerHTML = '<span class="material-symbols-outlined text-base">schedule</span><span>Choose time</span>';
+        chooseBtn.onclick = () => openTimeModal(e.id, e.title);
+        right.appendChild(chooseBtn);
+        row.appendChild(left);
+        row.appendChild(right);
+        el.appendChild(row);
+      });
+    }
+
+    function renderEvidence(items) {
+      const el = document.getElementById('evidenceList');
+      el.innerHTML = '';
+      if (!items.length) {
+        el.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No evidence requests at the moment.</div>';
+        return;
+      }
+      items.forEach(r => {
+        const row = document.createElement('div');
+        row.className = 'flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2';
+        row.innerHTML = `
+          <div>
+            <div class="text-sm"><span class="font-medium text-neutral-900">Request for:</span> ${escapeHtml(r.exercise_title || 'Session')}</div>
+            <div class="text-xs text-neutral-600">${escapeHtml(r.course_title)} — Requested at ${formatDt(r.requested_at)}</div>
+          </div>
+          <div class="text-xs text-neutral-600">Session: ${escapeHtml(r.session_slug)}</div>
+        `;
+        el.appendChild(row);
+      });
+    }
+
+    function renderError(msg) {
+      document.getElementById('coursesList').innerHTML = `<div class="rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-800">Error: ${escapeHtml(msg)}</div>`;
+      document.getElementById('uncompletedList').innerHTML = '';
+      document.getElementById('noTimeList').innerHTML = '';
+      document.getElementById('evidenceList').innerHTML = '';
+    }
+
+    // Modal logic
+    const timeModal = document.getElementById('timeModal');
+    const timeModalTitle = document.getElementById('timeModalTitle');
+    const timeModalBody = document.getElementById('timeModalBody');
+    const timeModalClose = document.getElementById('timeModalClose');
+    const timeModalCancel = document.getElementById('timeModalCancel');
+    const timeModalSave = document.getElementById('timeModalSave');
+
+    function closeTimeModal() {
+      timeModal.classList.add('hidden');
+      timeModal.classList.remove('flex');
+      currentExerciseId = null;
+      currentSelectedGroupTimeId = null;
+      timeModalBody.innerHTML = '';
+    }
+
+    async function openTimeModal(exerciseId, exerciseTitle) {
+      currentExerciseId = exerciseId;
+      currentSelectedGroupTimeId = null;
+      timeModalTitle.textContent = `Choose time — ${exerciseTitle || ''}`;
+      timeModal.classList.remove('hidden');
+      timeModal.classList.add('flex');
+
+      try {
+        const resp = await fetch(EXERCISE_GROUP_TIMES_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise_id: exerciseId }),
+        });
+        const json = await resp.json();
+        if (!json?.ok) {
+          timeModalBody.innerHTML = `<div class="text-neutral-700">Failed to load times: ${escapeHtml(json?.error || 'Error')}</div>`;
+          return;
+        }
+        currentSelectedGroupTimeId = json.selected_group_time_id || null;
+        const times = json.group_times || [];
+        if (!times.length) {
+          timeModalBody.innerHTML = `<div class="text-neutral-700">No group times defined by the teacher.</div>`;
+          return;
+        }
+        timeModalBody.innerHTML = times.map(t => `
+          <label class="flex items-center justify-between rounded-md border border-neutral-200 px-3 py-2">
+            <div>
+              <div class="text-sm font-medium text-neutral-900">${escapeHtml(t.name)}</div>
+              <div class="text-xs text-neutral-600">${formatDt(t.scheduled_at)}</div>
+            </div>
+            <input type="radio" name="gt" value="${t.id}" ${t.id === currentSelectedGroupTimeId ? 'checked' : ''} />
+          </label>
+        `).join('');
+      } catch (e) {
+        timeModalBody.innerHTML = `<div class="text-neutral-700">Network error loading times.</div>`;
+      }
+    }
+
+    timeModalClose.onclick = closeTimeModal;
+    timeModalCancel.onclick = closeTimeModal;
+    timeModalSave.onclick = async () => {
+      const chosen = document.querySelector('input[name="gt"]:checked');
+      if (!chosen) {
+        alert('Please select a time.');
+        return;
+      }
+      const group_time_id = parseInt(chosen.value, 10);
+      try {
+        const resp = await fetch(SELECT_GROUP_TIME_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ exercise_id: currentExerciseId, group_time_id }),
+        });
+        const json = await resp.json();
+        if (!json?.ok) {
+          alert('Failed to save time: ' + (json?.error || 'Error'));
+          return;
+        }
+        closeTimeModal();
+        await loadSummary();
+      } catch (e) {
+        alert('Network error saving selection');
+      }
+    };
+
+    // Helpers
+    function formatDt(iso) {
+      if (!iso) return '—';
+      try {
+        const d = new Date(iso);
+        return d.toLocaleString();
+      } catch { return iso; }
+    }
+    function escapeHtml(s) {
+      return String(s || '').replace(/[&<>"'`]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;','`':'&#96;'}[c]));
+    }
+
+    // Init
+    document.addEventListener('DOMContentLoaded', loadSummary);
+  </script>
+</body>
+</html>

@@ -1,0 +1,1476 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="utf-8">
+  <title>Exercise Management</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: {
+        fontFamily: { sans: ['"Open Sauce Sans"', 'system-ui', '-apple-system', 'Segoe UI', 'Roboto', 'Helvetica Neue', 'Arial'] },
+      }},
+    }
+  </script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:FILL@0..1" />
+</head>
+<body class="h-full bg-neutral-100 font-sans">
+  <div class="min-h-screen flex">
+    {% include 'snippets/sidebar/sidebar.html' with sidebar_role='assistant' %}
+    <main class="flex-1 min-w-0">
+      <header class="sticky top-0 bg-white border-b border-neutral-200 px-6 py-4 flex items-center justify-between">
+        <h1 class="text-xl font-semibold text-neutral-900">Exercise Management</h1>
+        <div class="flex items-center gap-3">
+          <span id="assistantName" class="text-sm text-neutral-700">Loading…</span>
+          <button id="signOutBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black transition-colors">
+            <span class="material-symbols-outlined text-base">logout</span>
+            <span>Sign out</span>
+          </button>
+        </div>
+      </header>
+
+      <section class="px-6 py-6 space-y-6">
+        <!-- List of tasks (exercises) grouped by course -->
+        <div id="coursesWrap" class="space-y-6">
+          <div class="text-sm text-neutral-700">Pick a task to start or continue an active session.</div>
+          <div id="coursesList" class="grid grid-cols-1 md:grid-cols-2 gap-6"></div>
+        </div>
+
+        <!-- Active session layout -->
+        <div id="sessionWrap" class="hidden grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <!-- Left: QR + realtime submissions -->
+          <div class="lg:col-span-2 space-y-6">
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <div class="flex items-center justify-between">
+                <div>
+                  <h2 id="sessionTitle" class="text-lg font-semibold text-neutral-900">Session</h2>
+                  <p id="sessionSlug" class="text-xs text-neutral-500 mt-1"></p>
+                </div>
+                <div class="text-sm text-neutral-700">
+                  <span id="timeLimitLabel">Time limit: —</span>
+                  <button id="endDeleteBtn" class="inline-flex items-center gap-1 rounded-md bg-red-600 text-white px-2.5 py-1.5 text-sm hover:bg-red-700">
+                        <span class="material-symbols-outlined text-base">stop_circle</span>
+                        <span>End & Delete</span>
+                  </button>
+                </div>
+              </div>
+              <div class="mt-4 flex items-start gap-6">
+                <div>
+                  <img id="qrImage" src="" alt="QR code" class="w-48 h-48 rounded-md border border-neutral-200" />
+                  <div class="mt-2 text-xs text-neutral-500">Scan to open student checkoff form.</div>
+                  <a id="publicLink" href="#" target="_blank" class="mt-2 inline-flex items-center gap-1 text-xs text-neutral-900 underline">Open form</a>
+                </div>
+                <div class="flex-1">
+                  <div class="flex items-center justify-between">
+                    <h3 class="text-sm font-medium text-neutral-900">Recent submissions</h3>
+                    <input id="searchInput" type="text" class="rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="Search by name or ID" />
+                  </div>
+                  <div id="subsList" class="mt-2 space-y-2 max-h-64 overflow-auto">
+                    <div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">Waiting for submissions…</div>
+                  </div>
+                  <div class="mt-3 flex items-center gap-4 text-sm text-neutral-700">
+                    <span id="subsCount">0 submissions</span>
+                    <span id="percentAvg">Avg completion: 0%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <!-- Right: Form preview and edit -->
+          <div class="space-y-6">
+            <div class="rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+              <h3 class="text-sm font-medium text-neutral-900">Form structure</h3>
+              <div id="structureTree" class="mt-3 text-sm text-neutral-800"></div>
+              <div class="mt-3 flex items-center gap-2">
+                <button id="addQuestionBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-2.5 py-1.5 text-sm whitespace-nowrap hover:bg-black">
+                <span class="material-symbols-outlined text-sm">add</span>
+                <span>Add Question</span>
+                </button>
+                <button id="saveStructureBtn" class="inline-flex items-center gap-2 rounded-md bg-indigo-600 text-white px-2.5 py-1.5 text-sm hover:bg-indigo-700">
+                  <span class="material-symbols-outlined text-sm">save</span>
+                  <span>Save Changes</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="lg:col-span-3 space-y-3">
+            <div id="manageBar" class="hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm flex items-center gap-3">
+            <button id="groupBtn" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+                <span class="material-symbols-outlined text-base">group</span>
+                <span>Group Students</span>
+            </button>
+            <button id="givePointsBtn" class="inline-flex items-center gap-1 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700">
+                <span class="material-symbols-outlined text-base">grade</span>
+                <span>Give Points</span>
+            </button>
+            <div class="ml-auto">
+                <button id="doneExerciseBtn" class="inline-flex items-center gap-1 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+                <span class="material-symbols-outlined text-base">task_alt</span>
+                <span>Done Exercise</span>
+                </button>
+            </div>
+            </div>
+
+            <!-- Groups Overview (visible right after grouping) -->
+            <div id="groupsOverview" class="hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <h3 class="text-sm font-medium text-neutral-900">Groups</h3>
+                <div class="text-xs text-neutral-600">Shows current groups formed.</div>
+            </div>
+            <div id="groupsOverviewContainer" class="mt-3 space-y-3"></div>
+            </div>
+
+            <!-- Grading Panel -->
+            <div id="gradingPanel" class="hidden rounded-lg border border-neutral-200 bg-white p-4 shadow-sm">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-neutral-700">Assign scores to students (by group or individually).</div>
+                <label class="inline-flex items-center gap-2 text-sm">
+                <input id="scoreAllTogetherToggle" type="checkbox" class="rounded border-neutral-300">
+                <span>Score all together?</span>
+                </label>
+            </div>
+            <div id="allScoreWrap" class="hidden mt-3">
+                <label class="text-sm text-neutral-700">All students score</label>
+                <input id="allScoreInput" type="number" class="mt-1 w-40 rounded-md border border-neutral-300 px-3 py-2" placeholder="e.g., 10" />
+            </div>
+            <div id="groupsContainer" class="mt-3 space-y-4"></div>
+            <div id="indivGrid" class="mt-3 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3"></div>
+            </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Start Task Modal -->
+  <div id="startModal" class="fixed inset-0 z-50 bg-black/40 backdrop-blur-sm hidden">
+    <div class="w-[95vw] md:w-[90vw] lg:w-[80vw] max-w-[1200px] mx-auto mt-24 rounded-lg bg-white border border-neutral-200 shadow-xl max-h-[85vh] overflow-y-auto">
+      <div class="p-6 space-y-4">
+        <h2 class="text-lg font-semibold text-neutral-900">Start Task</h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label class="text-sm text-neutral-700">Time limit (minutes)</label>
+            <input id="timeLimitInput" type="number" min="0" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" placeholder="e.g., 45" />
+          </div>
+          <div>
+            <label class="text-sm text-neutral-700">Question count</label>
+            <input id="qCountInput" type="number" min="0" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" placeholder="Detects from exercise if available" />
+          </div>
+        </div>
+
+        <div>
+          <label class="text-sm text-neutral-700">Do questions have subparts?</label>
+          <div class="mt-1 flex items-center gap-6 text-sm">
+            <label class="inline-flex items-center gap-1"><input type="radio" name="hasSub" value="no" checked> No</label>
+            <label class="inline-flex items-center gap-1"><input type="radio" name="hasSub" value="yes"> Yes</label>
+          </div>
+        </div>
+
+        <div id="uniformBlock" class="hidden">
+          <label class="text-sm text-neutral-700">Are all subparts same amount?</label>
+          <div class="mt-1 flex items-center gap-6 text-sm">
+            <label class="inline-flex items-center gap-1"><input type="radio" name="uniformSub" value="no" checked> No</label>
+            <label class="inline-flex items-center gap-1"><input type="radio" name="uniformSub" value="yes"> Yes</label>
+          </div>
+          <div id="uniformCountWrap" class="hidden mt-2">
+            <label class="text-sm text-neutral-700">Number of subparts per question</label>
+            <input id="uniformSubCount" type="number" min="1" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" placeholder="e.g., 3" />
+          </div>
+        </div>
+
+        <div id="customSubWrap" class="hidden">
+            <div class="rounded-lg border border-neutral-200 p-5 max-w-[1200px] mx-auto bg-white shadow-sm">
+                <p class="text-base text-neutral-800">Unique subparts per question (and nested subparts). Add per question below.</p>
+                <div id="customBuilder" class="mt-4 space-y-4"></div>
+            </div>
+        </div>
+
+        <div class="flex items-center justify-end gap-3 pt-2">
+          <button id="cancelStartBtn" class="inline-flex items-center gap-2 rounded-md border border-neutral-300 px-3 py-1.5 text-sm">Cancel</button>
+          <button id="startBtn" class="inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+            <span class="material-symbols-outlined text-sm">play_arrow</span>
+            <span>Start</span>
+          </button>
+          <button id="continueBtn" class="hidden inline-flex items-center gap-2 rounded-md bg-indigo-600 text-white px-3 py-1.5 text-sm hover:bg-indigo-700">
+            <span class="material-symbols-outlined text-sm">arrow_forward</span>
+            <span>Continue</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- End Session Modal -->
+<div id="mgmtEndSessionModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+  <div class="w-full max-w-md rounded-lg bg-white shadow-lg border border-neutral-200">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+      <h3 class="text-base font-semibold text-neutral-900">End & Delete Session</h3>
+      <button id="mgmtEndSessionClose" class="p-2 rounded hover:bg-neutral-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-4 space-y-2 text-sm text-neutral-800">
+      <div id="mgmtEndSessionInfo" class="text-neutral-700">Are you sure you want to end and delete this session?</div>
+      <div class="text-xs text-neutral-600">This will close the session, delete it, and mark the related exercise as completed.</div>
+    </div>
+    <div class="px-4 py-3 border-t border-neutral-200 flex justify-end gap-2">
+      <button id="mgmtEndSessionCancel" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+        <span class="material-symbols-outlined text-base">cancel</span>
+        <span>Cancel</span>
+      </button>
+      <button id="mgmtEndSessionConfirm" class="inline-flex items-center gap-1 rounded-md bg-red-600 text-white px-3 py-1.5 text-sm hover:bg-red-700">
+        <span class="material-symbols-outlined text-base">stop_circle</span>
+        <span>End & Delete</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Group Students Modal -->
+<div id="groupModal" class="fixed inset-0 bg-black/40 hidden items-center justify-center p-4 z-50">
+  <div class="w-full max-w-sm rounded-lg bg-white shadow-lg border border-neutral-200">
+    <div class="flex items-center justify-between px-4 py-3 border-b border-neutral-200">
+      <h3 class="text-base font-semibold text-neutral-900">Group Students</h3>
+      <button id="groupModalClose" class="p-2 rounded hover:bg-neutral-100">
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+    <div class="p-4 space-y-3">
+      <div>
+        <label class="text-sm text-neutral-700">Grouping method</label>
+        <div class="mt-1 flex items-center gap-6 text-sm">
+          <label class="inline-flex items-center gap-1"><input type="radio" name="groupMethod" value="manual" checked> Manual</label>
+          <label class="inline-flex items-center gap-1"><input type="radio" name="groupMethod" value="auto"> Auto (by same questions)</label>
+        </div>
+      </div>
+
+      <!-- Manual grouping block -->
+      <div id="manualGroupBlock">
+        <label class="text-sm text-neutral-700">How many per group?</label>
+        <input id="groupSizeInput" type="number" min="1" class="mt-1 w-full rounded-md border border-neutral-300 px-3 py-2" placeholder="e.g., 2" />
+        <div class="text-xs text-neutral-600">We’ll divide evenly; the last group may have the remainder.</div>
+      </div>
+
+      <!-- Auto grouping block (no optional size input) -->
+      <div id="autoGroupBlock" class="hidden">
+        <div class="text-sm text-neutral-700">Auto groups students who did the same top-level questions (e.g., Q1, Q3).</div>
+        <div class="text-xs text-neutral-600 mt-1">We’ll balance groups within each cluster automatically.</div>
+      </div>
+    </div>
+    <div class="px-4 py-3 border-t border-neutral-200 flex justify-end gap-2">
+      <button id="groupModalCancel" class="inline-flex items-center gap-1 rounded-md border border-neutral-300 px-3 py-1.5 text-sm hover:bg-neutral-50">
+        <span class="material-symbols-outlined text-base">cancel</span>
+        <span>Cancel</span>
+      </button>
+      <button id="groupConfirmBtn" class="inline-flex items-center gap-1 rounded-md bg-neutral-900 text-white px-3 py-1.5 text-sm hover:bg-black">
+        <span class="material-symbols-outlined text-base">group_add</span>
+        <span>Make Groups</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_EXERCISES = "{% url 'ta_api_exercises' %}";
+const API_SESSION_CREATE = "{% url 'ta_api_session_create' %}";
+const API_SESSION_GET = "{% url 'ta_api_session_get' %}";
+const API_SESSION_UPDATE = "{% url 'ta_api_session_update_structure' %}";
+const API_SESSION_SUBMISSIONS = "{% url 'ta_api_session_submissions' %}";
+const API_SESSION_METRICS = "{% url 'ta_api_session_metrics' %}";
+const API_SESSION_END_DELETE = "{% url 'ta_api_session_end_delete' %}";
+const API_ASSISTANT_LOOKUP = "{% url 'ta_api_assistant_lookup' %}";
+const API_SESSION_LIST = "{% url 'ta_api_session_list' %}";
+const API_SESSION_GRADE_CLOSE = "{% url 'ta_api_session_grade_close' %}";
+
+// Assistant identity from localStorage (set at login/signup)
+const assistantCode = localStorage.getItem('assistantCode') || '';
+const assistantNameEl = document.getElementById('assistantName');
+
+const coursesListEl = document.getElementById('coursesList');
+const coursesWrapEl = document.getElementById('coursesWrap');
+const sessionWrapEl = document.getElementById('sessionWrap');
+
+const startModalEl = document.getElementById('startModal');
+const timeLimitInput = document.getElementById('timeLimitInput');
+const qCountInput = document.getElementById('qCountInput');
+const uniformBlockEl = document.getElementById('uniformBlock');
+const uniformCountWrapEl = document.getElementById('uniformCountWrap');
+const uniformSubCountEl = document.getElementById('uniformSubCount');
+const customSubWrapEl = document.getElementById('customSubWrap');
+const customBuilderEl = document.getElementById('customBuilder');
+const startBtn = document.getElementById('startBtn');
+const continueBtn = document.getElementById('continueBtn');
+const cancelStartBtn = document.getElementById('cancelStartBtn');
+
+const sessionTitleEl = document.getElementById('sessionTitle');
+const sessionSlugEl = document.getElementById('sessionSlug');
+const timeLimitLabelEl = document.getElementById('timeLimitLabel');
+const qrImageEl = document.getElementById('qrImage');
+const publicLinkEl = document.getElementById('publicLink');
+const subsListEl = document.getElementById('subsList');
+const searchInputEl = document.getElementById('searchInput');
+const subsCountEl = document.getElementById('subsCount');
+const percentAvgEl = document.getElementById('percentAvg');
+const structureTreeEl = document.getElementById('structureTree');
+const addQuestionBtn = document.getElementById('addQuestionBtn');
+const saveStructureBtn = document.getElementById('saveStructureBtn');
+
+const endDeleteBtn = document.getElementById('endDeleteBtn');
+const mgmtEndSessionModal = document.getElementById('mgmtEndSessionModal');
+const mgmtEndSessionInfo = document.getElementById('mgmtEndSessionInfo');
+const mgmtEndSessionClose = document.getElementById('mgmtEndSessionClose');
+const mgmtEndSessionCancel = document.getElementById('mgmtEndSessionCancel');
+const mgmtEndSessionConfirm = document.getElementById('mgmtEndSessionConfirm');
+
+// Manage & Grading elements
+const manageBarEl = document.getElementById('manageBar');
+// Ensure hidden by default (defensive in case markup changes)
+manageBarEl?.classList.add('hidden');
+const groupBtn = document.getElementById('groupBtn');
+const givePointsBtn = document.getElementById('givePointsBtn');
+const doneExerciseBtn = document.getElementById('doneExerciseBtn');
+const gradingPanelEl = document.getElementById('gradingPanel');
+const groupsContainerEl = document.getElementById('groupsContainer');
+const indivGridEl = document.getElementById('indivGrid');
+const scoreAllTogetherToggle = document.getElementById('scoreAllTogetherToggle');
+const allScoreWrapEl = document.getElementById('allScoreWrap');
+const allScoreInputEl = document.getElementById('allScoreInput');
+
+// Group modal elements
+const groupModalEl = document.getElementById('groupModal');
+const groupSizeInput = document.getElementById('groupSizeInput');
+const groupModalClose = document.getElementById('groupModalClose');
+const groupModalCancel = document.getElementById('groupModalCancel');
+const groupConfirmBtn = document.getElementById('groupConfirmBtn');
+const groupsOverviewEl = document.getElementById('groupsOverview');
+const groupsOverviewContainerEl = document.getElementById('groupsOverviewContainer');
+const groupMethodRadios = document.querySelectorAll('input[name="groupMethod"]');
+const manualGroupBlockEl = document.getElementById('manualGroupBlock');
+const autoGroupBlockEl = document.getElementById('autoGroupBlock');
+
+// Helper: toggle method UI
+function updateGroupMethodUI() {
+  const method = Array.from(groupMethodRadios).find(r => r.checked)?.value || 'manual';
+  if (method === 'auto') {
+    manualGroupBlockEl.classList.add('hidden');
+    autoGroupBlockEl.classList.remove('hidden');
+  } else {
+    autoGroupBlockEl.classList.add('hidden');
+    manualGroupBlockEl.classList.remove('hidden');
+  }
+}
+groupMethodRadios.forEach(r => r.addEventListener('change', updateGroupMethodUI));
+
+function openGroupModal() {
+  groupSizeInput.value = '';
+  groupMethodRadios.forEach(r => r.checked = (r.value === 'manual'));
+  updateGroupMethodUI();
+  groupModalEl.classList.remove('hidden');
+  groupModalEl.classList.add('flex');
+}
+
+// State for grading
+let currentSubs = [];
+let groups = []; // [{ index: 1, students: [ {student_id, student_name}, ... ] }, ...]
+const gradingByStudent = new Map(); // student_id -> { score, group_index }
+const studentToGroup = new Map(); // student_id -> group_index
+
+// Helper: reset and hide manage UI when leaving session view
+function resetManageUIAfterExit() {
+  gradingPanelEl.classList.add('hidden');
+  groupsOverviewEl.classList.add('hidden');
+  // Hide the manage bar when not in session view
+  manageBarEl?.classList.add('hidden');
+  groupsContainerEl.innerHTML = '';
+  indivGridEl.innerHTML = '';
+  groupsOverviewContainerEl.innerHTML = '';
+  groups = [];
+  gradingByStudent.clear();
+  studentToGroup.clear();
+  scoreAllTogetherToggle.checked = false;
+  allScoreWrapEl.classList.add('hidden');
+  allScoreInputEl.value = '';
+}
+function closeGroupModal() {
+  groupModalEl.classList.add('hidden');
+  groupModalEl.classList.remove('flex');
+}
+groupBtn?.addEventListener('click', () => {
+  if (!currentSubs.length) { alert('No submissions yet to group'); return; }
+  openGroupModal();
+});
+[groupModalClose, groupModalCancel].forEach(btn => btn?.addEventListener('click', closeGroupModal));
+
+groupConfirmBtn?.addEventListener('click', () => {
+  const selected = document.querySelector('input[name="groupMethod"]:checked');
+  const method = selected ? selected.value : 'manual';
+  if (!currentSubs.length) { alert('No submissions yet to group'); return; }
+
+  if (method === 'auto') {
+    computeAutoGroups(); // no optional size; balances internally
+  } else {
+    const size = parseInt(groupSizeInput.value || '0', 10);
+    if (!size || size <= 0) { alert('Please enter a valid group size'); return; }
+    computeManualGroups(size);
+  }
+
+  closeGroupModal();
+  renderGroupsOverview();
+  groupsOverviewEl.classList.remove('hidden');
+  groupsOverviewEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  alert(`Created ${groups.length} group(s). Use "Give Points" to grade.`);
+});
+
+// Manual grouping (even-ish split; remainder spread to keep groups close in size)
+function computeManualGroups(size) {
+  groups = [];
+  studentToGroup.clear();
+  const list = [...currentSubs];
+  const gCount = Math.ceil(list.length / size);
+  if (gCount <= 0) return;
+
+  const baseSize = Math.floor(list.length / gCount);
+  const remainder = list.length % gCount;
+
+  let cursor = 0;
+  let gIndex = 1;
+  for (let i = 0; i < gCount; i++) {
+    const blockSize = baseSize + (i < remainder ? 1 : 0);
+    const members = list.slice(cursor, cursor + blockSize);
+    members.forEach(s => {
+      studentToGroup.set(s.student_id, gIndex);
+      const prev = gradingByStudent.get(s.student_id) || {};
+      gradingByStudent.set(s.student_id, {
+        score: prev.score ?? (typeof s.score === 'number' ? s.score : null),
+        group_index: gIndex
+      });
+    });
+    groups.push({ index: gIndex, students: members, key: null });
+    cursor += blockSize;
+    gIndex += 1;
+  }
+}
+
+// Auto grouping by same top-level questions answered
+function computeAutoGroups(targetSize = 0) {
+  groups = [];
+  studentToGroup.clear();
+
+  // Cluster by answered top-level questions, e.g., ["Q1","Q3"] -> key "Q1|Q3"
+  const clusterMap = new Map();
+  currentSubs.forEach(s => {
+    const topQs = deriveTopQuestions(s.answers || []);
+    const key = topQs.length ? topQs.join('|') : 'NONE';
+    if (!clusterMap.has(key)) clusterMap.set(key, []);
+    clusterMap.get(key).push(s);
+  });
+
+  let gIndex = 1;
+  for (const [key, list] of clusterMap.entries()) {
+    if (!targetSize || targetSize <= 0) {
+      // Single group per cluster
+      list.forEach(s => {
+        studentToGroup.set(s.student_id, gIndex);
+        const prev = gradingByStudent.get(s.student_id) || {};
+        gradingByStudent.set(s.student_id, {
+          score: prev.score ?? (typeof s.score === 'number' ? s.score : null),
+          group_index: gIndex
+        });
+      });
+      groups.push({ index: gIndex, students: list, key });
+      gIndex += 1;
+    } else {
+      // Partition evenly within the cluster
+      const gCount = Math.ceil(list.length / targetSize);
+      if (gCount <= 0) continue;
+
+      const baseSize = Math.floor(list.length / gCount);
+      const remainder = list.length % gCount;
+
+      let cursor = 0;
+      for (let i = 0; i < gCount; i++) {
+        const blockSize = baseSize + (i < remainder ? 1 : 0);
+        const members = list.slice(cursor, cursor + blockSize);
+        members.forEach(s => {
+          studentToGroup.set(s.student_id, gIndex);
+          const prev = gradingByStudent.get(s.student_id) || {};
+          gradingByStudent.set(s.student_id, {
+            score: prev.score ?? (typeof s.score === 'number' ? s.score : null),
+            group_index: gIndex
+          });
+        });
+        groups.push({ index: gIndex, students: members, key });
+        cursor += blockSize;
+        gIndex += 1;
+      }
+    }
+  }
+}
+
+// Extract sorted unique top-level question labels (e.g., "Q2" from "Q2.a1.b")
+function deriveTopQuestions(answers) {
+  if (!Array.isArray(answers)) return [];
+  const set = new Set();
+  answers.forEach(a => {
+    if (typeof a !== 'string') return;
+    const top = a.split('.')[0].trim();
+    if (top) set.add(top);
+  });
+  return Array.from(set).sort();
+}
+
+function renderGroupsOverview() {
+  groupsOverviewContainerEl.innerHTML = '';
+  if (!groups.length) {
+    groupsOverviewContainerEl.innerHTML = '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No groups yet</div>';
+    return;
+  }
+  groups.forEach(group => {
+    const sameQs = group.key && group.key !== 'NONE' ? group.key.split('|').join(', ') : '—';
+    const card = document.createElement('div');
+    card.className = 'rounded-md border border-neutral-200 bg-white p-3 shadow-sm';
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div class="text-sm font-medium text-neutral-900">Group ${group.index}</div>
+        <div class="text-xs text-neutral-600">${group.students.length} student(s)</div>
+      </div>
+      <div class="mt-1 text-xs text-neutral-600">Same questions: ${sameQs}</div>
+      <div class="mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+        ${group.students.map(s => `
+          <div class="flex items-center justify-between rounded-md border border-neutral-200 bg-neutral-50 px-2 py-1.5">
+            <div>
+              <div class="text-sm font-medium text-neutral-900">${s.student_name}</div>
+              <div class="text-xs text-neutral-600">${s.student_id}</div>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    groupsOverviewContainerEl.appendChild(card);
+  });
+}
+
+function computeGroups(size) {
+  groups = [];
+  studentToGroup.clear();
+  const list = [...currentSubs];
+  let idx = 0;
+  let gIndex = 1;
+  while (idx < list.length) {
+    const members = list.slice(idx, idx + size);
+    members.forEach(s => {
+      studentToGroup.set(s.student_id, gIndex);
+      const prev = gradingByStudent.get(s.student_id) || {};
+      gradingByStudent.set(s.student_id, {
+        score: prev.score ?? (typeof s.score === 'number' ? s.score : null),
+        group_index: gIndex
+      });
+    });
+    groups.push({ index: gIndex, students: members });
+    idx += size;
+    gIndex += 1;
+  }
+}
+
+// Render grading UI (groups or 3-col individuals)
+function renderGradingUI() {
+  groupsContainerEl.innerHTML = '';
+  indivGridEl.innerHTML = '';
+  const showGroups = groups.length > 0;
+
+  allScoreWrapEl.classList.toggle('hidden', false);
+
+  if (showGroups) {
+    groups.forEach(group => {
+      const card = document.createElement('div');
+      card.className = 'rounded-md border border-neutral-200 p-3';
+      const header = document.createElement('div');
+      header.className = 'flex items-center justify-between';
+      header.innerHTML = `
+        <div class="text-sm font-medium text-neutral-900">Group ${group.index}</div>
+      `;
+      card.appendChild(header);
+
+      const list = document.createElement('div');
+      list.className = 'mt-2 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2';
+      group.students.forEach(s => {
+        const entry = gradingByStudent.get(s.student_id) || {};
+        const initial = entry.score ?? (typeof s.score === 'number' ? s.score : '');
+        const chip = document.createElement('div');
+        chip.className = 'flex items-center justify-between rounded-md border border-neutral-200 bg-white px-2 py-1.5';
+        chip.innerHTML = `
+          <div>
+            <div class="text-sm font-medium text-neutral-900">${s.student_name}</div>
+            <div class="text-xs text-neutral-600">${s.student_id}</div>
+          </div>
+          <input type="number" value="${initial === null ? '' : initial}" data-student-id="${s.student_id}" data-group-index="${group.index}" class="score-input w-20 rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="Score" />
+        `;
+        list.appendChild(chip);
+      });
+      card.appendChild(list);
+      groupsContainerEl.appendChild(card);
+    });
+  } else {
+    currentSubs.forEach(s => {
+      const entry = gradingByStudent.get(s.student_id) || {};
+      const initial = entry.score ?? (typeof s.score === 'number' ? s.score : '');
+      const card = document.createElement('div');
+      card.className = 'rounded-md border border-neutral-200 bg-white p-3 flex items-center justify-between';
+      card.innerHTML = `
+        <div>
+          <div class="text-sm font-medium text-neutral-900">${s.student_name}</div>
+          <div class="text-xs text-neutral-600">${s.student_id}</div>
+        </div>
+        <input type="number" value="${initial === null ? '' : initial}" data-student-id="${s.student_id}" class="score-input w-20 rounded-md border border-neutral-300 px-2 py-1 text-sm" placeholder="Score" />
+      `;
+      indivGridEl.appendChild(card);
+    });
+  }
+
+  document.querySelectorAll('#gradingPanel .score-input').forEach(inp => {
+    inp.addEventListener('input', () => {
+      const sid = inp.getAttribute('data-student-id');
+      const gid = parseInt(inp.getAttribute('data-group-index') || '0', 10) || (studentToGroup.get(sid) || null);
+      const raw = inp.value;
+      const val = (raw === '' ? null : parseInt(raw, 10));
+      gradingByStudent.set(sid, { score: val, group_index: gid });
+    });
+  });
+}
+
+// Toggle “score all together” behavior
+scoreAllTogetherToggle?.addEventListener('change', () => {
+  const enabled = !!scoreAllTogetherToggle.checked;
+  allScoreWrapEl.classList.toggle('hidden', !enabled);
+  if (!enabled) return;
+  // Prefill current inputs when toggled on using current allScoreInput value
+  const v = allScoreInputEl.value;
+  if (v !== '') {
+    document.querySelectorAll('#gradingPanel .score-input').forEach(inp => {
+      inp.value = v;
+      const sid = inp.getAttribute('data-student-id');
+      const gid = parseInt(inp.getAttribute('data-group-index') || '0', 10) || (studentToGroup.get(sid) || null);
+      gradingByStudent.set(sid, { score: parseInt(v, 10), group_index: gid });
+    });
+  }
+});
+allScoreInputEl?.addEventListener('input', () => {
+  if (!scoreAllTogetherToggle.checked) return;
+  const v = allScoreInputEl.value;
+  document.querySelectorAll('#gradingPanel .score-input').forEach(inp => {
+    inp.value = v;
+    const sid = inp.getAttribute('data-student-id');
+    const gid = parseInt(inp.getAttribute('data-group-index') || '0', 10) || (studentToGroup.get(sid) || null);
+    gradingByStudent.set(sid, { score: (v === '' ? null : parseInt(v, 10)), group_index: gid });
+  });
+});
+
+// Show grading panel on demand (score boxes only after clicking)
+givePointsBtn?.addEventListener('click', () => {
+  gradingPanelEl.classList.remove('hidden');
+  renderGradingUI();
+});
+
+// Persist grading and close session
+doneExerciseBtn?.addEventListener('click', async () => {
+  try {
+    // Build graded list from current inputs/state
+    const graded = currentSubs.map(s => {
+      const entry = gradingByStudent.get(s.student_id) || {};
+      return {
+        student_id: s.student_id,
+        score: entry.score ?? null,
+        group_index: entry.group_index ?? (studentToGroup.get(s.student_id) || null),
+      };
+    });
+
+    // Resolve assistant identity
+    const taUserId = localStorage.getItem('ta_user_id') || '';
+    const taEmail = localStorage.getItem('ta_email') || '';
+    let assistantId = 0;
+    try {
+      const lookupRes = await fetch(API_ASSISTANT_LOOKUP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabase_user_id: taUserId, email: taEmail })
+      });
+      const lookupJs = await lookupRes.json().catch(() => ({}));
+      if (lookupJs?.ok && lookupJs?.assistant?.id) {
+        assistantId = lookupJs.assistant.id;
+      }
+    } catch (_) {}
+
+    // Save grades and close session (archives exercise by setting deadline; session status -> closed)
+    const res = await fetch(API_SESSION_GRADE_CLOSE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistant_id: assistantId || 0,
+        assistant_code: assistantCode || '',
+        supabase_user_id: taUserId || '',
+        email: taEmail || '',
+        slug: sessionSlug,
+        graded,
+      })
+    });
+    const js = await res.json();
+    if (!js?.ok) return alert(js?.error || 'Failed to save grading');
+
+    alert('Grading saved. Session closed and exercise archived.');
+
+    // Reset to courses list
+    clearCountdown();
+    timeLimitLabelEl.textContent = 'Time limit: —';
+    sessionWrapEl.classList.add('hidden');
+    coursesWrapEl.classList.remove('hidden');
+    resetManageUIAfterExit();
+
+    const res2 = await fetch(API_EXERCISES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assistant_code: assistantCode })
+    });
+    const js2 = await res2.json();
+    if (js2?.ok) renderCourses(js2.courses || []);
+  } catch (e) {
+    alert('Failed to save grading');
+  }
+});
+
+let selectedCourse = null;
+let selectedExercise = null;
+let selectedExerciseQuestionsCount = 0;
+let sessionSlug = null;
+let structure = { questions: [] };
+// Live countdown interval
+let countdownInterval = null;
+
+function clearCountdown() {
+  if (countdownInterval) {
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+  }
+}
+
+// Start a live mm:ss countdown for the session
+function startCountdown(sess) {
+  clearCountdown();
+
+  const durationMin = parseInt(sess?.time_limit_minutes || 0, 10);
+  if (!durationMin || durationMin <= 0) {
+    timeLimitLabelEl.textContent = 'Time limit: —';
+    return;
+  }
+
+  // Try common timestamp keys from backend; fallback to now
+  const tsCandidates = [sess?.started_at, sess?.start_time, sess?.created_at, sess?.started_ts];
+  let startTs = null;
+  for (const ts of tsCandidates) {
+    if (!ts) continue;
+    const parsed = new Date(ts).getTime();
+    if (!Number.isNaN(parsed)) { startTs = parsed; break; }
+  }
+
+  let endTs = null;
+  if (sess?.ends_at) {
+    const parsedEnd = new Date(sess.ends_at).getTime();
+    if (!Number.isNaN(parsedEnd)) endTs = parsedEnd;
+  }
+  if (!endTs) {
+    if (!startTs || Number.isNaN(startTs)) startTs = Date.now();
+    endTs = startTs + durationMin * 60_000;
+  }
+
+  function tick() {
+    const remainingMs = endTs - Date.now();
+    if (remainingMs <= 0) {
+      timeLimitLabelEl.textContent = 'Time left: 0:00';
+      clearCountdown();
+      return;
+    }
+    const m = Math.floor(remainingMs / 60000);
+    const s = Math.floor((remainingMs % 60000) / 1000);
+    timeLimitLabelEl.textContent = `Time left: ${m}:${String(s).padStart(2, '0')}`;
+  }
+
+  tick();
+  countdownInterval = setInterval(tick, 1000);
+}
+
+assistantNameEl.textContent = localStorage.getItem('assistantName') || 'Assistant';
+
+function labelSub(idx) {
+  const base = 'abcdefghijklmnopqrstuvwxyz';
+  if (idx < 26) return base[idx];
+  const times = Math.floor(idx / 26);
+  const rem = idx % 26;
+  return base[rem] + times;
+}
+
+// Insert newNode right after referenceNode
+function insertAfter(referenceNode, newNode) {
+  if (!referenceNode || !referenceNode.parentNode) return;
+  referenceNode.parentNode.insertBefore(newNode, referenceNode.nextSibling);
+}
+
+function openMgmtEndModal() {
+  mgmtEndSessionInfo.innerHTML = `
+    <div class="text-neutral-800"><span class="font-medium">Session:</span> ${sessionTitleEl.textContent || '(untitled)'}</div>
+    <div class="text-neutral-600"><span class="font-medium">Slug:</span> ${sessionSlug || '—'}</div>
+    <div class="mt-2">Are you sure you want to end and delete this session?</div>
+  `;
+  mgmtEndSessionModal.classList.remove('hidden');
+  mgmtEndSessionModal.classList.add('flex');
+}
+function closeMgmtEndModal() {
+  mgmtEndSessionModal.classList.add('hidden');
+  mgmtEndSessionModal.classList.remove('flex');
+}
+endDeleteBtn?.addEventListener('click', openMgmtEndModal);
+mgmtEndSessionClose.onclick = closeMgmtEndModal;
+mgmtEndSessionCancel.onclick = closeMgmtEndModal;
+mgmtEndSessionConfirm.onclick = async () => {
+  try {
+    const taUserId = localStorage.getItem('ta_user_id') || '';
+    const taEmail = localStorage.getItem('ta_email') || '';
+
+    // Resolve assistant_id for robust server lookup (parity with dashboard)
+    let assistantId = 0;
+    try {
+      const lookupRes = await fetch(API_ASSISTANT_LOOKUP, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supabase_user_id: taUserId, email: taEmail })
+      });
+      const lookupJs = await lookupRes.json().catch(() => ({}));
+      if (lookupJs?.ok && lookupJs?.assistant?.id) {
+        assistantId = lookupJs.assistant.id;
+        try { localStorage.setItem('assistantCode', lookupJs.assistant.special_code || ''); } catch (_) {}
+      }
+    } catch (_) {}
+
+    const res = await fetch(API_SESSION_END_DELETE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        assistant_id: assistantId || 0,
+        assistant_code: assistantCode || '',
+        supabase_user_id: taUserId || '',
+        email: taEmail || '',
+        slug: sessionSlug,
+      })
+    });
+    const js = await res.json();
+    if (!js?.ok) return alert(js?.error || 'Failed to end session');
+    closeMgmtEndModal();
+
+    // Reset UI to courses list view
+    clearCountdown();
+    timeLimitLabelEl.textContent = 'Time limit: —';
+    sessionWrapEl.classList.add('hidden');
+    coursesWrapEl.classList.remove('hidden');
+    resetManageUIAfterExit();
+
+    // Reload exercises
+    const res2 = await fetch(API_EXERCISES, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ assistant_code: assistantCode })
+    });
+    const js2 = await res2.json();
+    if (js2?.ok) renderCourses(js2.courses || []);
+  } catch (e) {
+    alert('Failed to end session');
+  }
+};
+
+function renderCourses(payload) {
+  coursesListEl.innerHTML = '';
+  payload.forEach(entry => {
+    const c = entry.course;
+    const exs = entry.exercises || [];
+    const card = document.createElement('div');
+    card.className = 'rounded-lg border border-neutral-200 bg-white p-4 shadow-sm space-y-3';
+    card.innerHTML = `
+      <div class="flex items-center justify-between">
+        <div>
+          <h2 class="text-base font-semibold text-neutral-900">${c.title}</h2>
+          <div class="text-xs text-neutral-600">${entry.course.teacher.title || ''} ${entry.course.teacher.first_name || ''} ${entry.course.teacher.last_name || ''}</div>
+        </div>
+      </div>
+      <div class="space-y-2">
+        ${exs.map(e => `
+          <div class="rounded-md border border-neutral-200 p-3 flex items-center justify-between ${e.deadline && (new Date(e.deadline) < new Date()) ? 'opacity-50' : ''}">
+            <div>
+              <div class="text-sm font-medium text-neutral-900">${e.title}</div>
+              <div class="text-xs text-neutral-600">Questions: ${e.questions_count}</div>
+            </div>
+            <button
+              data-course="${c.id}"
+              data-exercise="${e.id}"
+              data-qcount="${e.questions_count}"
+              ${e.deadline && (new Date(e.deadline) < new Date()) ? 'disabled' : ''}
+              class="startTaskBtn inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-2.5 py-1.5 text-sm hover:bg-black ${e.deadline && (new Date(e.deadline) < new Date()) ? 'opacity-50 pointer-events-none cursor-not-allowed' : ''}"
+              title="${e.deadline && (new Date(e.deadline) < new Date()) ? 'Exercise completed' : 'Start task'}"
+            >
+              <span class="material-symbols-outlined text-sm">play_arrow</span>
+              <span>Start task</span>
+            </button>
+          </div>
+        `).join('')}
+      </div>
+    `;
+    coursesListEl.appendChild(card);
+  });
+
+  // Attach handlers only to enabled buttons
+  document.querySelectorAll('.startTaskBtn:not([disabled])').forEach(btn => {
+    btn.addEventListener('click', (evt) => {
+      selectedCourse = parseInt(btn.getAttribute('data-course'), 10);
+      selectedExercise = parseInt(btn.getAttribute('data-exercise'), 10);
+      selectedExerciseQuestionsCount = parseInt(btn.getAttribute('data-qcount'), 10);
+      openStartModal();
+    });
+  });
+}
+
+function openStartModal() {
+  startModalEl.classList.remove('hidden');
+  timeLimitInput.value = '';
+  qCountInput.value = selectedExerciseQuestionsCount || '';
+  document.querySelectorAll('input[name="hasSub"]').forEach(r => r.checked = (r.value === 'no'));
+  document.querySelectorAll('input[name="uniformSub"]').forEach(r => r.checked = (r.value === 'no'));
+  uniformBlockEl.classList.add('hidden');
+  uniformCountWrapEl.classList.add('hidden');
+  customSubWrapEl.classList.add('hidden');
+  customBuilderEl.innerHTML = '';
+  continueBtn.classList.add('hidden');
+  startBtn.classList.remove('hidden');
+}
+
+function closeStartModal() {
+  startModalEl.classList.add('hidden');
+}
+
+document.querySelectorAll('input[name="hasSub"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const has = document.querySelector('input[name="hasSub"][value="yes"]').checked;
+    uniformBlockEl.classList.toggle('hidden', !has);
+    customSubWrapEl.classList.toggle('hidden', !has);
+    const uniformYes = document.querySelector('input[name="uniformSub"][value="yes"]').checked;
+    uniformCountWrapEl.classList.toggle('hidden', !(has && uniformYes));
+    // If unique subparts needed, switch to Continue (blocked Start)
+    const uniformNo = document.querySelector('input[name="uniformSub"][value="no"]').checked;
+    if (has && uniformNo) { startBtn.classList.add('hidden'); continueBtn.classList.remove('hidden'); }
+    else { continueBtn.classList.add('hidden'); startBtn.classList.remove('hidden'); }
+    if (has) renderCustomBuilder();
+  });
+});
+
+document.querySelectorAll('input[name="uniformSub"]').forEach(r => {
+  r.addEventListener('change', () => {
+    const has = document.querySelector('input[name="hasSub"][value="yes"]').checked;
+    const uniformYes = document.querySelector('input[name="uniformSub"][value="yes"]').checked;
+    uniformCountWrapEl.classList.toggle('hidden', !(has && uniformYes));
+    const uniformNo = document.querySelector('input[name="uniformSub"][value="no"]').checked;
+    if (has && uniformNo) { startBtn.classList.add('hidden'); continueBtn.classList.remove('hidden'); }
+    else { continueBtn.classList.add('hidden'); startBtn.classList.remove('hidden'); }
+  });
+});
+
+function letterIndex(lbl) {
+  const base = 'abcdefghijklmnopqrstuvwxyz';
+  return base.indexOf(lbl);
+}
+
+function renderCustomBuilder() {
+  const qCount = parseInt(qCountInput.value || '0', 10) || selectedExerciseQuestionsCount || 0;
+    customBuilderEl.innerHTML = '';
+
+    // Make the whole builder scrollable
+    customBuilderEl.classList.add('max-h-[420px]', 'overflow-y-auto', 'pr-1');
+
+    for (let i = 1; i <= qCount; i++) {
+        const row = document.createElement('div');
+        // Remove justify-between to stop width fighting; add tight gaps
+        row.className = 'flex items-center gap-4 rounded-lg border border-neutral-200 p-4 bg-white';
+
+        // Q label
+        const qBadge = document.createElement('div');
+        qBadge.className = 'flex-shrink-0 text-sm font-semibold text-neutral-900 px-3 py-2 rounded-md bg-neutral-50 border border-neutral-200';
+        qBadge.textContent = `Q${i}`;
+        row.appendChild(qBadge);
+
+        // Subparts grid: 4 per row, scrollable, can shrink cleanly
+        const subList = document.createElement('div');
+        subList.className = 'grid grid-cols-4 gap-3 w-full min-w-0';
+        subList.dataset.forQuestion = i;
+        subList.classList.add('max-h-[180px]', 'overflow-y-auto'); // per-question grid scroll
+        row.appendChild(subList);
+
+        // Single-line "Add subquestion"
+        const addBtn = document.createElement('button');
+        addBtn.className = 'flex-shrink-0 inline-flex items-center gap-2 rounded-md bg-neutral-900 text-white px-3 py-2 text-sm whitespace-nowrap hover:bg-black';
+        addBtn.innerHTML = '<span class="material-symbols-outlined text-sm">add</span><span>Add subquestion</span>';
+        row.appendChild(addBtn);
+
+        // Add top-level subpart handler
+        addBtn.addEventListener('click', () => {
+            // Compute next label using helper to handle >26 items (a..z, a1, b1, ...)
+            const topLevelSubs = Array.from(subList.querySelectorAll('[data-sub]')).filter(el => /^[a-z]+$/.test(el.dataset.sub));
+            const lbl = labelSub(topLevelSubs.length);
+
+            // Top-level chip
+            const chip = document.createElement('div');
+            chip.dataset.sub = lbl;
+            chip.className = 'relative flex items-center justify-between rounded-md bg-white px-3 py-2 text-sm border border-neutral-200 w-full min-w-0 shadow-sm hover:border-neutral-300';
+
+            const labelEl = document.createElement('span');
+            labelEl.className = 'select-none';
+            labelEl.textContent = lbl;
+            chip.appendChild(labelEl);
+
+            const actions = document.createElement('div');
+            actions.className = 'flex items-center gap-2';
+            chip.appendChild(actions);
+
+            // Add nested subpart
+            const addNestedBtn = document.createElement('button');
+            addNestedBtn.className = 'material-symbols-outlined text-sm text-neutral-600 hover:text-neutral-800';
+            addNestedBtn.title = 'Add nested subpart';
+            addNestedBtn.textContent = 'subdirectory_arrow_right';
+            actions.appendChild(addNestedBtn);
+
+            // Remove button (top-right of chip)
+            const removeBtn = document.createElement('button');
+            removeBtn.className = 'absolute top-1 right-1 flex items-center justify-center w-4 h-4 rounded-full border border-neutral-300 bg-white text-[12px] leading-none text-neutral-600';
+            removeBtn.setAttribute('data-action', 'remove');
+            removeBtn.textContent = '×';
+            chip.appendChild(removeBtn);
+
+            // Remove entire group (top-level + nested)
+            removeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                subList.querySelectorAll(`[data-sub^="${lbl}"]`).forEach(el => el.remove());
+            });
+
+            // Add nested subpart right after last sibling with same prefix
+            addNestedBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const siblingsWithPrefix = Array.from(subList.querySelectorAll(`[data-sub^="${lbl}"]`));
+                const nestedCount = siblingsWithPrefix.length; // includes top-level
+                const nestedLbl = `${lbl}${nestedCount}`;
+
+                const nestedChip = document.createElement('div');
+                nestedChip.dataset.sub = nestedLbl;
+                nestedChip.className = 'relative flex items-center justify-between rounded-md bg-neutral-100 text-neutral-700 px-3 py-2 text-sm border border-neutral-300 w-full min-w-0 shadow-sm hover:border-neutral-400';
+
+                const nestedLabelEl = document.createElement('span');
+                nestedLabelEl.className = 'select-none';
+                nestedLabelEl.textContent = nestedLbl;
+                nestedChip.appendChild(nestedLabelEl);
+
+                const nestedRemoveBtn = document.createElement('button');
+                nestedRemoveBtn.className = 'absolute top-1 right-1 flex items-center justify-center w-4 h-4 rounded-full border border-neutral-300 bg-white text-[12px] leading-none text-neutral-500';
+                nestedRemoveBtn.textContent = '×';
+                nestedChip.appendChild(nestedRemoveBtn);
+
+                nestedRemoveBtn.addEventListener('click', (e2) => {
+                    e2.stopPropagation();
+                    nestedChip.remove();
+                });
+
+                const lastSibling = siblingsWithPrefix[siblingsWithPrefix.length - 1] || chip;
+                insertAfter(lastSibling, nestedChip);
+            });
+
+            subList.appendChild(chip);
+        });
+
+        customBuilderEl.appendChild(row);
+    }
+}
+
+cancelStartBtn.addEventListener('click', closeStartModal);
+
+startBtn.addEventListener('click', async () => {
+  // Require a positive time limit
+  const timeRaw = (timeLimitInput.value || '').trim();
+  const timeLimit = parseInt(timeRaw, 10);
+  if (!timeRaw || isNaN(timeLimit) || timeLimit <= 0) {
+    timeLimitInput.focus();
+    timeLimitInput.classList.add('ring-2', 'ring-red-400');
+    setTimeout(() => timeLimitInput.classList.remove('ring-2', 'ring-red-400'), 1800);
+    alert('Please enter a positive time limit in minutes.');
+    return;
+  }
+
+  const qCount = parseInt(qCountInput.value || '0', 10) || selectedExerciseQuestionsCount || 0;
+  const hasSub = document.querySelector('input[name="hasSub"][value="yes"]').checked;
+  const uniformYes = document.querySelector('input[name="uniformSub"][value="yes"]').checked;
+  const uniformCount = parseInt(uniformSubCountEl.value || '0', 10) || 0;
+
+  let mode = 'count_only';
+  let body = {
+    assistant_code: assistantCode,
+    course_id: selectedCourse,
+    exercise_id: selectedExercise,
+    time_limit_minutes: timeLimit,
+  };
+
+  if (selectedExercise && !hasSub) {
+    mode = 'existing';
+  } else if (!hasSub) {
+    mode = 'count_only';
+    body.question_count = qCount;
+  } else if (uniformYes) {
+    mode = 'uniform_subparts';
+    body.question_count = qCount;
+    body.subparts_count = uniformCount;
+  } else {
+    // unique subparts path requires Continue instead
+    alert('Please use Continue to start with custom subparts.');
+    return;
+  }
+
+  body.mode = mode;
+
+  try {
+    const res = await fetch(API_SESSION_CREATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const js = await res.json();
+    if (!js.ok) return alert(js.error || 'Failed to create session');
+    closeStartModal();
+    showSession(js.session);
+  } catch (e) {
+    alert('Network error creating session.');
+  }
+});
+
+continueBtn.addEventListener('click', async () => {
+  // Require a positive time limit
+  const timeRaw = (timeLimitInput.value || '').trim();
+  const timeLimit = parseInt(timeRaw, 10);
+  if (!timeRaw || isNaN(timeLimit) || timeLimit <= 0) {
+    timeLimitInput.focus();
+    timeLimitInput.classList.add('ring-2', 'ring-red-400');
+    setTimeout(() => timeLimitInput.classList.remove('ring-2', 'ring-red-400'), 1800);
+    alert('Please enter a positive time limit in minutes.');
+    return;
+  }
+
+  const qCount = parseInt(qCountInput.value || '0', 10) || selectedExerciseQuestionsCount || 0;
+
+  // Build custom structure from the builder grid
+  const questions = [];
+  for (let i = 1; i <= qCount; i++) {
+    const list = customBuilderEl.querySelector(`[data-for-question="${i}"]`);
+    const subs = list
+      ? Array.from(list.querySelectorAll('[data-sub]')).map(el => ({ label: el.dataset.sub }))
+      : [];
+    const node = { label: `Q${i}` };
+    if (subs.length) node.children = subs;
+    questions.push(node);
+  }
+
+  const body = {
+    assistant_code: assistantCode,
+    course_id: selectedCourse,
+    exercise_id: selectedExercise,
+    time_limit_minutes: timeLimit,
+    mode: 'custom_structure',
+    structure: { questions },
+  };
+
+  try {
+    const res = await fetch(API_SESSION_CREATE, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const js = await res.json();
+    if (!js.ok) return alert(js.error || 'Failed to create session');
+    closeStartModal();
+    showSession(js.session);
+  } catch (e) {
+    alert('Network error creating session.');
+  }
+});
+
+function showSession(sess) {
+    coursesWrapEl.classList.add('hidden');
+    sessionWrapEl.classList.remove('hidden');
+    // Show manage bar only in session view
+    manageBarEl?.classList.remove('hidden');
+    sessionSlug = sess.slug;
+    structure = sess.structure || { questions: [] };
+    sessionTitleEl.textContent = sess.title || 'Session';
+    sessionSlugEl.textContent = `Slug: ${sess.slug}`;
+    // Initialize countdown immediately
+    timeLimitLabelEl.textContent = 'Time left: —';
+    startCountdown(sess);
+    publicLinkEl.href = sess.public_url;
+    qrImageEl.src = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(sess.public_url)}`;
+    renderStructureTree();
+    startPolling();
+}
+
+function renderStructureTree() {
+    const wrap = document.createElement('div');
+    wrap.className = 'space-y-3';
+
+    (structure.questions || []).forEach((q, idx) => {
+        const row = document.createElement('div');
+        row.className = 'rounded-lg border border-neutral-200 p-3 bg-white';
+
+        const title = document.createElement('div');
+        title.className = 'flex items-center justify-between';
+        title.innerHTML = `
+          <div class="text-sm font-medium text-neutral-900">${q.label}</div>
+          <div class="flex items-center gap-2">
+            <button class="inline-flex items-center gap-1 rounded-md bg-neutral-100 px-2 py-1 text-xs border border-neutral-300 whitespace-nowrap" data-action="add-sub" data-idx="${idx}">
+              <span class="material-symbols-outlined text-xs">add</span>Sub
+            </button>
+            <button class="inline-flex items-center gap-1 rounded-md bg-red-100 px-2 py-1 text-xs border border-red-300 text-red-700 whitespace-nowrap" data-action="del-q" data-idx="${idx}">
+              <span class="material-symbols-outlined text-xs">delete</span>Delete
+            </button>
+          </div>`;
+
+        // 4 per row grid with scroll
+        const subsWrap = document.createElement('div');
+        subsWrap.className = 'mt-2 grid grid-cols-4 gap-3 w-full min-w-0 max-h-[180px] overflow-y-auto pr-1';
+
+        (q.children || []).forEach((ch, subIdx) => {
+        const isNested = /^[a-z]+[0-9]+$/.test(ch.label);
+
+        const chip = document.createElement('div');
+        chip.className = isNested
+            ? 'relative inline-flex items-center justify-between rounded-md bg-neutral-100 text-neutral-700 px-3 py-2 text-xs border border-neutral-300 w-full shadow-sm hover:border-neutral-400'
+            : 'relative inline-flex items-center justify-between rounded-md bg-white px-3 py-2 text-xs border border-neutral-200 w-full shadow-sm hover:border-neutral-300';
+
+        const left = document.createElement('div');
+        left.className = 'flex items-center gap-2';
+        chip.appendChild(left);
+
+        const labelEl = document.createElement('span');
+        labelEl.className = 'select-none';
+        labelEl.textContent = ch.label;
+        left.appendChild(labelEl);
+
+        // Add nested subpart (e.g., a -> a1 -> a2)
+        const addNestedBtn = document.createElement('button');
+        addNestedBtn.className = 'material-symbols-outlined text-[14px] text-neutral-600 hover:text-neutral-800';
+        addNestedBtn.title = 'Add nested subpart';
+        addNestedBtn.textContent = 'subdirectory_arrow_right';
+        left.appendChild(addNestedBtn);
+
+        addNestedBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const base = (ch.label.match(/^[a-z]+/) || [''])[0];
+            const children = structure.questions[idx].children || [];
+
+            const samePrefixIdxs = [];
+            children.forEach((c, i) => {
+                if ((c.label || '').startsWith(base)) samePrefixIdxs.push(i);
+            });
+
+            const nextNestedLabel = `${base}${samePrefixIdxs.length}`;
+
+            const insertAt = samePrefixIdxs.length
+                ? samePrefixIdxs[samePrefixIdxs.length - 1] + 1
+                : children.length;
+
+            children.splice(insertAt, 0, { label: nextNestedLabel });
+            renderStructureTree();
+        });
+
+        // Small cross positioned flush top-right
+        const removeBtn = document.createElement('button');
+        removeBtn.className = isNested
+            ? 'absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full border border-neutral-300 bg-white text-[12px] leading-none text-neutral-500 hover:border-neutral-400 hover:text-neutral-700'
+            : 'absolute -top-1 -right-1 flex items-center justify-center w-4 h-4 rounded-full border border-neutral-300 bg-white text-[12px] leading-none text-neutral-600 hover:border-neutral-400 hover:text-neutral-800';
+        removeBtn.textContent = '×';
+        removeBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            structure.questions[idx].children.splice(subIdx, 1);
+            renderStructureTree();
+        });
+        chip.appendChild(removeBtn);
+
+        subsWrap.appendChild(chip);
+    });
+
+        row.appendChild(title);
+        row.appendChild(subsWrap);
+        wrap.appendChild(row);
+    });
+
+    structureTreeEl.innerHTML = '';
+    structureTreeEl.appendChild(wrap);
+
+    // Controls
+    structureTreeEl.querySelectorAll('[data-action="add-sub"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            if (!structure.questions[idx].children) structure.questions[idx].children = [];
+            const count = structure.questions[idx].children.length;
+            structure.questions[idx].children.push({ label: labelSub(count) });
+            renderStructureTree();
+        });
+    });
+    structureTreeEl.querySelectorAll('[data-action="del-q"]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.getAttribute('data-idx'), 10);
+            structure.questions.splice(idx, 1);
+            renderStructureTree();
+        });
+    });
+}
+
+addQuestionBtn.addEventListener('click', () => {
+  const next = (structure.questions || []).length + 1;
+  if (!structure.questions) structure.questions = [];
+  structure.questions.push({ label: `Q${next}` });
+  renderStructureTree();
+});
+
+saveStructureBtn.addEventListener('click', async () => {
+  const res = await fetch(API_SESSION_UPDATE, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: sessionSlug, structure }) });
+  const js = await res.json();
+  if (!js.ok) return alert(js.error || 'Failed to save');
+  alert('Structure saved');
+});
+
+function startPolling() {
+  async function loadSubs() {
+    const res = await fetch(API_SESSION_SUBMISSIONS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: sessionSlug }) });
+    const js = await res.json();
+    if (!js.ok) return;
+
+    // Keep a fresh copy of all submissions
+    currentSubs = js.submissions || [];
+
+    // Merge server scores only for students without local edits
+    currentSubs.forEach(s => {
+      if (!gradingByStudent.has(s.student_id)) {
+        const groupIdx = (typeof s.group_index === 'number' ? s.group_index : (studentToGroup.get(s.student_id) || null));
+        gradingByStudent.set(s.student_id, {
+          score: (typeof s.score === 'number' ? s.score : null),
+          group_index: groupIdx
+        });
+      }
+    });
+
+    const q = (searchInputEl.value || '').toLowerCase();
+    const filtered = (js.submissions || []).filter(s => (s.student_name || '').toLowerCase().includes(q) || (s.student_id || '').toLowerCase().includes(q));
+    subsCountEl.textContent = `${js.submissions.length} submissions`;
+    subsListEl.innerHTML = filtered.length ? '' : '<div class="rounded-md border border-neutral-200 p-3 text-sm text-neutral-700">No submissions yet</div>';
+    filtered.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'rounded-md border border-neutral-200 p-3 text-sm flex items-center justify-between';
+      item.innerHTML = `
+        <div>
+          <div class="font-medium text-neutral-900">${s.student_name}</div>
+          <div class="text-xs text-neutral-600">${s.student_id}</div>
+        </div>
+        <div class="text-xs text-neutral-600">Checks: ${s.total_checked_count}</div>
+      `;
+      subsListEl.appendChild(item);
+    });
+
+    // Do NOT auto re-render grading UI to avoid wiping inputs
+    // Keep groups overview in sync (safe; no score inputs there)
+    if (!groupsOverviewEl.classList.contains('hidden')) {
+      renderGroupsOverview();
+    }
+  }
+  async function loadMetrics() {
+    const res = await fetch(API_SESSION_METRICS, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ slug: sessionSlug }) });
+    const js = await res.json();
+    if (!js.ok) return;
+    percentAvgEl.textContent = `Avg completion: ${js.metrics.percent_complete_avg}%`;
+  }
+  loadSubs(); loadMetrics();
+  setInterval(loadSubs, 4000);
+  setInterval(loadMetrics, 7000);
+}
+
+searchInputEl.addEventListener('input', () => {
+  // poller redraw handles filtering, trigger immediate refresh
+  // optional immediate fetch
+});
+
+async function init() {
+  // Read session slug from query param
+  const params = new URLSearchParams(window.location.search);
+    const slugParam = params.get('session');
+
+    // Explicit resume via query param
+    if (slugParam) {
+        try {
+            const res = await fetch(API_SESSION_GET, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug: slugParam })
+            });
+            const js = await res.json();
+            if (js.ok) {
+                showSession(js.session);
+                return;
+            } else {
+                alert(js.error || 'Failed to load session');
+            }
+        } catch (e) {
+            alert('Failed to load session');
+        }
+    }
+
+    // Auto-resume most recent active session for this assistant
+    try {
+        const taUserId = localStorage.getItem('ta_user_id') || '';
+        const taEmail = localStorage.getItem('ta_email') || '';
+        const listRes = await fetch(API_SESSION_LIST, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                assistant_code: assistantCode || '',
+                supabase_user_id: taUserId || '',
+                email: taEmail || '',
+            }),
+        });
+        const listJs = await listRes.json();
+        if (listJs?.ok && Array.isArray(listJs.sessions) && listJs.sessions.length > 0) {
+            const recentSlug = listJs.sessions[0].slug;
+            const getRes = await fetch(API_SESSION_GET, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ slug: recentSlug }),
+            });
+            const getJs = await getRes.json();
+            if (getJs?.ok) {
+                showSession(getJs.session);
+                return;
+            }
+        }
+    } catch (_) {
+        // Silent fail; proceed to courses list
+    }
+
+    // Fallback: normal load of courses/exercises
+    const res = await fetch(API_EXERCISES, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistant_code: assistantCode }),
+    });
+    const js = await res.json();
+    if (!js.ok) return alert(js.error || 'Failed to load exercises');
+    renderCourses(js.courses || []);
+}
+init();
+</script>
+</body>
+</html>
